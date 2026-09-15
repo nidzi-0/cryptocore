@@ -1,0 +1,30 @@
+# Virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest
+.pytest_cache/
+
+# PyCharm
+.idea/
+
+# Build files
+build/
+dist/
+*.egg-info/
+
+# Temporary encrypted/decrypted files
+ciphertext*.bin
+decrypted*.txt
+roundtrip_original.txt
+roundtrip_encrypted.bin
+roundtrip_decrypted.txt
+
+# OS files
+.DS_Store
+Thumbs.db
