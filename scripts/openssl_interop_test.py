@@ -12,6 +12,7 @@ FIXED_IV_HEX = (
 )
 
 MODES = [
+    "ecb",
     "cbc",
     "cfb",
     "ofb",
@@ -20,11 +21,6 @@ MODES = [
 
 
 def run_command(command: list[str]) -> None:
-    """
-    Запускает внешнюю команду.
-
-    При ошибке выполнение теста прекращается.
-    """
     subprocess.run(
         command,
         check=True
@@ -35,9 +31,6 @@ def check_files_equal(
     first_file: Path,
     second_file: Path
 ) -> bool:
-    """
-    Сравнивает два файла побайтово.
-    """
     return (
         first_file.read_bytes()
         == second_file.read_bytes()
@@ -53,15 +46,10 @@ def cryptocore_to_openssl(
         directory / f"{mode}_cryptocore.bin"
     )
 
-    ciphertext_file = (
-        directory / f"{mode}_ciphertext.bin"
-    )
-
     openssl_decrypted_file = (
         directory / f"{mode}_openssl_decrypted.bin"
     )
 
-    # Шифруем файл через CryptoCore.
     run_command([
         sys.executable,
         "-m",
@@ -79,34 +67,59 @@ def cryptocore_to_openssl(
         str(cryptocore_file),
     ])
 
-    encrypted_data = cryptocore_file.read_bytes()
+    # ECB не использует IV.
+    if mode == "ecb":
+        run_command([
+            "openssl",
+            "enc",
+            "-aes-128-ecb",
+            "-d",
+            "-K",
+            KEY_HEX,
+            "-nosalt",
+            "-in",
+            str(cryptocore_file),
+            "-out",
+            str(openssl_decrypted_file),
+        ])
 
-    if len(encrypted_data) < 16:
-        raise ValueError(
-            "Файл CryptoCore не содержит "
-            "16-байтовый IV."
+    else:
+        encrypted_data = cryptocore_file.read_bytes()
+
+        if len(encrypted_data) < 16:
+            raise ValueError(
+                "Файл CryptoCore не содержит "
+                "16-байтовый IV."
+            )
+
+        # Первые 16 байт файла — IV.
+        iv = encrypted_data[:16]
+
+        # Остальные байты — ciphertext.
+        ciphertext = encrypted_data[16:]
+
+        ciphertext_file = (
+            directory / f"{mode}_ciphertext.bin"
         )
 
-    iv = encrypted_data[:16]
+        ciphertext_file.write_bytes(
+            ciphertext
+        )
 
-    ciphertext = encrypted_data[16:]
-
-    ciphertext_file.write_bytes(ciphertext)
-
-    run_command([
-        "openssl",
-        "enc",
-        f"-aes-128-{mode}",
-        "-d",
-        "-K",
-        KEY_HEX,
-        "-iv",
-        iv.hex(),
-        "-in",
-        str(ciphertext_file),
-        "-out",
-        str(openssl_decrypted_file),
-    ])
+        run_command([
+            "openssl",
+            "enc",
+            f"-aes-128-{mode}",
+            "-d",
+            "-K",
+            KEY_HEX,
+            "-iv",
+            iv.hex(),
+            "-in",
+            str(ciphertext_file),
+            "-out",
+            str(openssl_decrypted_file),
+        ])
 
     return check_files_equal(
         original_file,
@@ -127,20 +140,93 @@ def openssl_to_cryptocore(
         directory / f"{mode}_cryptocore_decrypted.bin"
     )
 
-    run_command([
-        "openssl",
-        "enc",
-        f"-aes-128-{mode}",
-        "-K",
-        KEY_HEX,
-        "-iv",
-        FIXED_IV_HEX,
-        "-in",
-        str(original_file),
-        "-out",
-        str(openssl_ciphertext_file),
-    ])
+    # ECB не использует IV.
+    if mode == "ecb":
+        run_command([
+            "openssl",
+            "enc",
+            "-aes-128-ecb",
+            "-e",
+            "-K",
+            KEY_HEX,
+            "-nosalt",
+            "-in",
+            str(original_file),
+            "-out",
+            str(openssl_ciphertext_file),
+        ])
 
+        run_command([
+            sys.executable,
+            "-m",
+            "cryptocore",
+            "--algorithm",
+            "aes",
+            "--mode",
+            "ecb",
+            "--decrypt",
+            "--key",
+            KEY_HEX,
+            "--input",
+            str(openssl_ciphertext_file),
+            "--output",
+            str(cryptocore_decrypted_file),
+        ])
+
+    else:
+        run_command([
+            "openssl",
+            "enc",
+            f"-aes-128-{mode}",
+            "-e",
+            "-K",
+            KEY_HEX,
+            "-iv",
+            FIXED_IV_HEX,
+            "-in",
+            str(original_file),
+            "-out",
+            str(openssl_ciphertext_file),
+        ])
+
+        run_command([
+            sys.executable,
+            "-m",
+            "cryptocore",
+            "--algorithm",
+            "aes",
+            "--mode",
+            mode,
+            "--decrypt",
+            "--key",
+            KEY_HEX,
+            "--iv",
+            FIXED_IV_HEX,
+            "--input",
+            str(openssl_ciphertext_file),
+            "--output",
+            str(cryptocore_decrypted_file),
+        ])
+
+    return check_files_equal(
+        original_file,
+        cryptocore_decrypted_file
+    )
+
+
+def verify_ecb_ciphertext(
+    directory: Path,
+    original_file: Path
+) -> bool:
+    cryptocore_file = (
+        directory / "ecb_cryptocore_verify.bin"
+    )
+
+    openssl_file = (
+        directory / "ecb_openssl_verify.bin"
+    )
+
+    # Шифрование через CryptoCore.
     run_command([
         sys.executable,
         "-m",
@@ -148,21 +234,51 @@ def openssl_to_cryptocore(
         "--algorithm",
         "aes",
         "--mode",
-        mode,
-        "--decrypt",
+        "ecb",
+        "--encrypt",
         "--key",
         KEY_HEX,
-        "--iv",
-        FIXED_IV_HEX,
         "--input",
-        str(openssl_ciphertext_file),
+        str(original_file),
         "--output",
-        str(cryptocore_decrypted_file),
+        str(cryptocore_file),
     ])
 
-    return check_files_equal(
-        original_file,
-        cryptocore_decrypted_file
+    run_command([
+        "openssl",
+        "enc",
+        "-aes-128-ecb",
+        "-e",
+        "-K",
+        KEY_HEX,
+        "-nosalt",
+        "-in",
+        str(original_file),
+        "-out",
+        str(openssl_file),
+    ])
+
+    cryptocore_ciphertext = (
+        cryptocore_file.read_bytes()
+    )
+
+    openssl_ciphertext = (
+        openssl_file.read_bytes()
+    )
+
+    print(
+        "CryptoCore ciphertext: "
+        f"{cryptocore_ciphertext.hex().upper()}"
+    )
+
+    print(
+        "OpenSSL ciphertext:   "
+        f"{openssl_ciphertext.hex().upper()}"
+    )
+
+    return (
+        cryptocore_ciphertext
+        == openssl_ciphertext
     )
 
 
@@ -177,17 +293,22 @@ def main() -> int:
         "CryptoCore / OpenSSL interoperability test"
     )
 
+    version_result = subprocess.run(
+        ["openssl", "version"],
+        check=True,
+        capture_output=True,
+        text=True
+    )
+
     print(
-        subprocess.run(
-            ["openssl", "version"],
-            check=True,
-            capture_output=True,
-            text=True
-        ).stdout.strip()
+        version_result.stdout.strip()
     )
 
     passed = 0
-    total = len(MODES) * 2
+
+    # 5 режимов x 2 направления
+    # + отдельное сравнение ciphertext ECB.
+    total = len(MODES) * 2 + 1
 
     with tempfile.TemporaryDirectory() as temp_dir:
         directory = Path(temp_dir)
@@ -197,8 +318,8 @@ def main() -> int:
         )
 
         original_data = (
-            b"CryptoCore Sprint 2 OpenSSL test\x00"
-            b"\x01\x02\x03\x04\xff"
+            b"CryptoCore OpenSSL interoperability test"
+            b"\x00\x01\x02\x03\x04\xff"
         )
 
         original_file.write_bytes(
@@ -238,6 +359,27 @@ def main() -> int:
                     "FAIL: OpenSSL -> CryptoCore"
                 )
 
+        print(
+            "\n[SPRINT 1 TEST-3 / ECB CIPHERTEXT]"
+        )
+
+        if verify_ecb_ciphertext(
+            directory,
+            original_file
+        ):
+            print(
+                "PASS: ciphertext CryptoCore ECB "
+                "совпадает с ciphertext OpenSSL ECB"
+            )
+
+            passed += 1
+
+        else:
+            print(
+                "FAIL: ciphertext CryptoCore ECB "
+                "отличается от ciphertext OpenSSL ECB"
+            )
+
     print(
         f"\nResult: {passed}/{total} checks passed"
     )
@@ -246,11 +388,13 @@ def main() -> int:
         print(
             "OpenSSL interoperability: PASSED"
         )
+
         return 0
 
     print(
         "OpenSSL interoperability: FAILED"
     )
+
     return 1
 
 

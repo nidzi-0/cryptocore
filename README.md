@@ -2,45 +2,55 @@
 
 CryptoCore — консольное приложение на Python для шифрования и расшифрования файлов с использованием алгоритма AES-128.
 
-Проект реализован в рамках учебной работы по дисциплине, связанной с методами и средствами криптографической защиты информации.
+Проект разработан в рамках учебной работы по дисциплине, связанной с методами и средствами криптографической защиты информации.
+
+В рамках проекта реализованы требования Sprint 1 и Sprint 2.
+
+---
 
 ## Поддерживаемые режимы
 
 CryptoCore поддерживает следующие режимы AES-128:
 
-- ECB
-- CBC
-- CFB-128
-- OFB
-- CTR
+- ECB;
+- CBC;
+- CFB-128;
+- OFB;
+- CTR.
 
-Для выполнения самого AES используется библиотека PyCryptodome.
+Для выполнения самого алгоритма AES используется библиотека PyCryptodome.
 
 Логика режимов CBC, CFB, OFB и CTR реализована самостоятельно поверх AES-примитива.
 
+---
+
 ## Требования
 
-- Python 3.10 или новее
-- PyCryptodome
-- pytest
-- OpenSSL — для проверки совместимости
+Для работы проекта требуется:
+
+- Python 3.10 или новее;
+- PyCryptodome;
+- pytest;
+- OpenSSL — для проверки совместимости.
+
+---
 
 ## Установка
 
 Клонировать репозиторий:
 
-```bash
+```powershell
 git clone https://github.com/nidzi-0/cryptocore.git
 cd cryptocore
 ```
 
 Создать виртуальное окружение:
 
-```bash
+```powershell
 python -m venv .venv
 ```
 
-Windows PowerShell:
+Активировать виртуальное окружение в Windows PowerShell:
 
 ```powershell
 .venv\Scripts\Activate.ps1
@@ -48,18 +58,28 @@ Windows PowerShell:
 
 Установить проект и зависимости:
 
-```bash
+```powershell
 pip install -e .
 pip install -r requirements.txt
 ```
 
 После установки должна быть доступна команда:
 
-```bash
+```powershell
 cryptocore --help
 ```
 
-## Общий формат команды
+Также программу можно запускать как Python-модуль:
+
+```powershell
+python -m cryptocore --help
+```
+
+---
+
+# Использование
+
+Общий формат команды:
 
 ```text
 cryptocore
@@ -72,7 +92,9 @@ cryptocore
     [--output <output-file>]
 ```
 
-AES-128 использует ключ длиной 16 байт, то есть 32 шестнадцатеричных символа.
+Для AES-128 используется ключ длиной 16 байт.
+
+В hexadecimal-представлении это 32 символа.
 
 Пример ключа:
 
@@ -80,110 +102,148 @@ AES-128 использует ключ длиной 16 байт, то есть 32
 000102030405060708090a0b0c0d0e0f
 ```
 
-## ECB
+---
 
-ECB не использует IV.
+# AES-128 ECB
 
-### Шифрование
+ECB реализован в рамках Sprint 1.
+
+Режим ECB не использует IV.
+
+Для ECB используется PKCS#7 padding.
+
+## Шифрование ECB
 
 ```powershell
 cryptocore --algorithm aes --mode ecb --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_ecb.bin
 ```
 
-### Расшифрование
+## Расшифрование ECB
 
 ```powershell
 cryptocore --algorithm aes --mode ecb --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_ecb.bin --output decrypted_ecb.txt
 ```
 
-Для ECB используется PKCS#7 padding.
+---
 
-## CBC
+# AES-128 CBC
+
+CBC реализован в рамках Sprint 2.
 
 При шифровании IV создаётся автоматически.
+
+Для CBC используется PKCS#7 padding.
+
+## Шифрование CBC
 
 ```powershell
 cryptocore --algorithm aes --mode cbc --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_cbc.bin
 ```
 
-В начале выходного файла сохраняется 16-байтовый IV.
+При шифровании программа:
 
-При обычном расшифровании указывать IV не требуется:
+1. генерирует случайный IV длиной 16 байт;
+2. выполняет шифрование CBC;
+3. добавляет IV в начало выходного файла.
+
+Формат файла:
+
+```text
+<16-byte IV><ciphertext>
+```
+
+## Расшифрование CBC
 
 ```powershell
 cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_cbc.bin --output decrypted_cbc.txt
 ```
 
-CryptoCore автоматически считывает первые 16 байт файла как IV.
+Если параметр `--iv` не указан, CryptoCore автоматически считывает первые 16 байт файла как IV.
 
-Для CBC используется PKCS#7 padding.
+---
 
-## CFB-128
+# AES-128 CFB-128
+
+CFB реализован с размером сегмента 128 бит.
+
+Padding в этом режиме не используется.
+
+Размер ciphertext совпадает с размером исходных данных.
+
+## Шифрование CFB
 
 ```powershell
 cryptocore --algorithm aes --mode cfb --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_cfb.bin
 ```
 
-Расшифрование:
+## Расшифрование CFB
 
 ```powershell
 cryptocore --algorithm aes --mode cfb --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_cfb.bin --output decrypted_cfb.txt
 ```
 
-CFB работает с сегментом размером 128 бит.
+---
+
+# AES-128 OFB
+
+OFB работает как потоковый режим.
 
 Padding не используется.
 
-## OFB
+## Шифрование OFB
 
 ```powershell
 cryptocore --algorithm aes --mode ofb --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_ofb.bin
 ```
 
-Расшифрование:
+## Расшифрование OFB
 
 ```powershell
 cryptocore --algorithm aes --mode ofb --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_ofb.bin --output decrypted_ofb.txt
 ```
 
-Padding не используется.
+---
 
-## CTR
+# AES-128 CTR
 
-```powershell
-cryptocore --algorithm aes --mode ctr --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_ctr.bin
-```
-
-Расшифрование:
-
-```powershell
-cryptocore --algorithm aes --mode ctr --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_ctr.bin --output decrypted_ctr.txt
-```
-
-Начальным значением 128-битного счётчика является IV.
+CTR использует 128-битное значение IV в качестве начального значения счётчика.
 
 После обработки каждого блока счётчик увеличивается на единицу.
 
 Padding не используется.
 
-## Работа с IV
+## Шифрование CTR
+
+```powershell
+cryptocore --algorithm aes --mode ctr --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_ctr.bin
+```
+
+## Расшифрование CTR
+
+```powershell
+cryptocore --algorithm aes --mode ctr --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_ctr.bin --output decrypted_ctr.txt
+```
+
+---
+
+# Работа с IV
 
 Для режимов:
 
-- CBC
-- CFB
-- OFB
+- CBC;
+- CFB;
+- OFB;
 - CTR
 
 используется IV длиной 16 байт.
 
-При шифровании IV генерируется автоматически с помощью:
+При шифровании IV создаётся автоматически с помощью:
 
 ```python
 os.urandom(16)
 ```
 
-Пользователь не передаёт `--iv` при шифровании.
+Пользователь не должен передавать `--iv` при шифровании.
 
 Формат зашифрованного файла:
 
@@ -191,131 +251,222 @@ os.urandom(16)
 <16-byte IV><ciphertext>
 ```
 
-То есть первые 16 байт выходного файла содержат IV, после чего располагается ciphertext.
+Первые 16 байт содержат IV.
 
-При расшифровании файла, созданного CryptoCore, параметр `--iv` не требуется.
+Оставшиеся байты содержат ciphertext.
+
+---
+
+## Расшифрование без параметра --iv
+
+Если файл был создан CryptoCore, параметр `--iv` указывать не требуется.
+
+Например:
+
+```powershell
+cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_cbc.bin --output restored.txt
+```
 
 Программа сама извлекает IV из первых 16 байт.
 
+---
+
 ## Явное указание IV
 
-Параметр `--iv` используется при расшифровании внешнего ciphertext, например созданного OpenSSL.
+Параметр `--iv` используется при расшифровании ciphertext, созданного внешней программой, например OpenSSL.
 
 Пример:
 
 ```powershell
-cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --iv AABBCCDDEEFF00112233445566778899 --input openssl_cipher.bin --output decrypted.txt
+cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --iv AABBCCDDEEFF00112233445566778899 --input openssl_cipher.bin --output restored.txt
 ```
 
-В этом случае весь входной файл считается ciphertext, а IV берётся из параметра `--iv`.
+В этом случае весь входной файл считается ciphertext.
 
-Передавать `--iv` при шифровании запрещено, так как IV создаётся автоматически.
+IV берётся из параметра `--iv`.
 
-ECB параметр `--iv` не использует.
+---
 
-## Padding
+## Ограничения параметра --iv
 
-Режимы ECB и CBC используют PKCS#7 padding.
+Параметр `--iv` не используется для ECB.
+
+Передавать `--iv` при шифровании нельзя.
+
+При шифровании CBC, CFB, OFB и CTR IV создаётся автоматически.
+
+---
+
+# Padding
 
 Режимы:
 
-- CFB
-- OFB
-- CTR
+```text
+ECB
+CBC
+```
 
-не используют padding.
+используют PKCS#7 padding.
 
-Поэтому для CFB, OFB и CTR размер ciphertext совпадает с размером исходных данных.
+Режимы:
 
-## Работа с бинарными файлами
+```text
+CFB
+OFB
+CTR
+```
 
-CryptoCore открывает входные и выходные файлы в бинарном режиме.
+работают без padding.
 
-Поэтому приложение может обрабатывать:
+Это позволяет CFB, OFB и CTR корректно обрабатывать последний неполный блок без увеличения размера ciphertext.
+
+---
+
+# Работа с бинарными файлами
+
+CryptoCore работает с файлами в бинарном режиме.
+
+Программа может обрабатывать:
 
 - текстовые файлы;
 - изображения;
 - архивы;
-- бинарные документы;
-- другие типы файлов.
+- исполняемые файлы;
+- документы;
+- произвольные бинарные данные.
 
-## Проверка тестов
+Чтение выполняется в режиме:
 
-Для запуска всех автоматических тестов:
+```python
+rb
+```
+
+Запись выполняется в режиме:
+
+```python
+wb
+```
+
+---
+
+# Автоматические тесты
+
+Для запуска всех тестов:
 
 ```powershell
 pytest
 ```
 
-Подробный вывод:
+Для подробного вывода:
 
 ```powershell
 pytest -v
 ```
 
-В проекте проверяются:
+Тестами проверяются:
 
-- PKCS#7;
-- ECB;
-- CBC;
-- CFB-128;
-- OFB;
-- CTR;
-- генерация и обработка IV;
-- корректность CLI;
-- обработка бинарных данных;
+- PKCS#7 padding;
+- AES-128 ECB;
+- AES-128 CBC;
+- AES-128 CFB-128;
+- AES-128 OFB;
+- AES-128 CTR;
+- обработка IV;
+- CLI;
+- неправильные ключи;
+- неправильные IV;
+- бинарные данные;
 - неполные блоки;
 - известные тестовые векторы;
 - round-trip;
-- интеграция режимов с файловым форматом.
+- файловый формат;
+- совместимость между режимами и основной программой.
 
-## Round-trip
+---
 
-Основной принцип проверки:
+# Round-trip
+
+Round-trip проверяет следующий сценарий:
 
 ```text
-original
-   |
-encrypt
-   |
-ciphertext
-   |
-decrypt
-   |
-restored
+original file
+      |
+      v
+   encrypt
+      |
+      v
+ ciphertext
+      |
+      v
+   decrypt
+      |
+      v
+ restored file
 ```
 
-Файлы `original` и `restored` должны полностью совпадать побайтово.
+После расшифрования исходный и восстановленный файлы должны полностью совпадать побайтово.
 
-## Совместимость с OpenSSL
+Сценарий находится в:
 
-Для проверки совместимости требуется установленный OpenSSL.
+```text
+scripts/round_trip_test.py
+```
 
-Проверить его наличие:
+Запуск:
+
+```powershell
+python scripts/round_trip_test.py
+```
+
+---
+
+# Совместимость с OpenSSL
+
+Для проверки совместимости CryptoCore с OpenSSL используется общий сценарий:
+
+```text
+scripts/openssl_interop_test.py
+```
+
+Он используется для проверки Sprint 1 и Sprint 2.
+
+---
+
+## Установка и запуск OpenSSL
+
+Проверить наличие OpenSSL:
 
 ```powershell
 openssl version
 ```
 
-Если OpenSSL установлен в:
+Если OpenSSL установлен по пути:
 
 ```text
 C:\Program Files\OpenSSL-Win64\bin
 ```
 
-его можно временно добавить в PATH текущего PowerShell:
+его можно добавить в PATH текущего PowerShell:
 
 ```powershell
 $env:Path += ";C:\Program Files\OpenSSL-Win64\bin"
 ```
 
-### Автоматическая проверка
+После этого:
 
-В проекте находится сценарий:
+```powershell
+openssl version
+```
+
+Пример корректного результата:
 
 ```text
-scripts/openssl_interop_test.py
+OpenSSL 4.0.2
 ```
+
+---
+
+# Общая проверка OpenSSL
 
 Запуск:
 
@@ -323,7 +474,203 @@ scripts/openssl_interop_test.py
 python scripts/openssl_interop_test.py
 ```
 
-Он проверяет режимы:
+Сценарий проверяет следующие режимы AES-128:
+
+- ECB;
+- CBC;
+- CFB-128;
+- OFB;
+- CTR.
+
+Для каждого режима выполняются проверки в обоих направлениях:
+
+```text
+CryptoCore -> OpenSSL
+OpenSSL -> CryptoCore
+```
+
+Для CBC, CFB, OFB и CTR используется IV длиной 16 байт.
+
+ECB не использует IV.
+
+---
+
+# TEST-3 Sprint 1 — OpenSSL ECB interop
+
+Требование TEST-3 Sprint 1 проверяет совместимость ciphertext CryptoCore с OpenSSL для AES-128-ECB.
+
+Проверка выполняется внутри общего сценария:
+
+```powershell
+python scripts/openssl_interop_test.py
+```
+
+Отдельный сценарий для ECB не используется.
+
+---
+
+## Как выполняется TEST-3 Sprint 1
+
+Одни и те же входные данные шифруются двумя способами:
+
+1. CryptoCore с использованием AES-128-ECB;
+2. OpenSSL с использованием `openssl enc -aes-128-ecb`.
+
+После этого два ciphertext сравниваются побайтово.
+
+Схема проверки:
+
+```text
+                    plaintext
+                    /       \
+                   /         \
+                  v           v
+           CryptoCore      OpenSSL
+               ECB            ECB
+                  \           /
+                   \         /
+                    v       v
+                 ciphertext
+                     |
+                     v
+              byte-by-byte
+                comparison
+```
+
+ECB не использует IV.
+
+---
+
+## Padding при проверке ECB
+
+CryptoCore использует PKCS#7 padding.
+
+При вызове OpenSSL параметр:
+
+```text
+-nopad
+```
+
+не используется.
+
+Поэтому OpenSSL применяет стандартное дополнение, совместимое с PKCS#7.
+
+Это позволяет непосредственно сравнивать ciphertext CryptoCore и OpenSSL.
+
+---
+
+# Пример OpenSSL ECB
+
+## Шифрование через CryptoCore
+
+```powershell
+cryptocore --algorithm aes --mode ecb --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output cryptocore_ecb.bin
+```
+
+## Шифрование тех же данных через OpenSSL
+
+```powershell
+openssl enc -aes-128-ecb -e -K 000102030405060708090a0b0c0d0e0f -nosalt -in plaintext.txt -out openssl_ecb.bin
+```
+
+Обратите внимание:
+
+- `-aes-128-ecb` — режим AES-128 ECB;
+- `-e` — операция шифрования;
+- `-K` — ключ AES в hex;
+- `-nosalt` — отключает добавление служебного salt-заголовка;
+- IV не передаётся, поскольку ECB его не использует;
+- `-nopad` не указывается, поэтому используется padding.
+
+После выполнения команд файлы:
+
+```text
+cryptocore_ecb.bin
+openssl_ecb.bin
+```
+
+должны полностью совпадать побайтово.
+
+---
+
+## Автоматическая проверка ciphertext ECB
+
+В `openssl_interop_test.py` отдельно выполняется сравнение:
+
+```text
+CryptoCore ciphertext
+        ==
+OpenSSL ciphertext
+```
+
+При успешной проверке вывод содержит:
+
+```text
+[SPRINT 1 TEST-3 / ECB CIPHERTEXT]
+
+CryptoCore ciphertext: ...
+OpenSSL ciphertext:   ...
+
+PASS: ciphertext CryptoCore ECB совпадает с ciphertext OpenSSL ECB
+```
+
+Таким образом выполняется требование TEST-3 Sprint 1.
+
+---
+
+# Проверка ECB: CryptoCore -> OpenSSL
+
+Кроме прямого сравнения ciphertext, общий interop-тест проверяет возможность расшифровать результат CryptoCore средствами OpenSSL.
+
+Схема:
+
+```text
+plaintext
+    |
+    v
+CryptoCore ECB encrypt
+    |
+    v
+ciphertext
+    |
+    v
+OpenSSL ECB decrypt
+    |
+    v
+restored plaintext
+```
+
+Результат должен полностью совпадать с исходными данными.
+
+---
+
+# Проверка ECB: OpenSSL -> CryptoCore
+
+Проверяется и обратное направление:
+
+```text
+plaintext
+    |
+    v
+OpenSSL ECB encrypt
+    |
+    v
+ciphertext
+    |
+    v
+CryptoCore ECB decrypt
+    |
+    v
+restored plaintext
+```
+
+ECB при этом не требует IV.
+
+---
+
+# Проверка CBC, CFB, OFB и CTR через OpenSSL
+
+Для режимов:
 
 ```text
 CBC
@@ -332,83 +679,93 @@ OFB
 CTR
 ```
 
-в обоих направлениях:
+используется IV длиной 16 байт.
+
+---
+
+## CryptoCore -> OpenSSL
+
+CryptoCore сохраняет файл в формате:
 
 ```text
-CryptoCore -> OpenSSL
-OpenSSL -> CryptoCore
+<16-byte IV><ciphertext>
 ```
 
-Итого выполняется 8 проверок совместимости.
+Перед передачей данных OpenSSL общий тест:
 
-Ожидаемый итог:
+1. извлекает первые 16 байт;
+2. использует их как IV;
+3. передаёт OpenSSL только ciphertext.
+
+Пример команды для CBC:
+
+```powershell
+openssl enc -aes-128-cbc -d -K 000102030405060708090a0b0c0d0e0f -iv AABBCCDDEEFF00112233445566778899 -in ciphertext.bin -out restored.txt
+```
+
+---
+
+## OpenSSL -> CryptoCore
+
+OpenSSL создаёт ciphertext без заголовка CryptoCore.
+
+Поэтому при расшифровании IV передаётся явно через параметр:
 
 ```text
-Result: 8/8 checks passed
-OpenSSL interoperability: PASSED
+--iv
 ```
 
-## CryptoCore -> OpenSSL вручную
-
-CryptoCore записывает файл в формате:
-
-```text
-IV + ciphertext
-```
-
-OpenSSL необходимо передавать только ciphertext, поэтому сначала требуется отделить первые 16 байт.
-
-Пример для CBC.
-
-Шифрование CryptoCore:
-
-```powershell
-cryptocore --algorithm aes --mode cbc --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted.bin
-```
-
-Извлечь IV и ciphertext можно через Python:
-
-```powershell
-python -c "from pathlib import Path; d=Path('encrypted.bin').read_bytes(); print(d[:16].hex()); Path('ciphertext.bin').write_bytes(d[16:])"
-```
-
-Команда напечатает IV.
-
-После этого ciphertext можно расшифровать OpenSSL:
-
-```powershell
-openssl enc -aes-128-cbc -d -K 000102030405060708090a0b0c0d0e0f -iv <IV_HEX> -in ciphertext.bin -out openssl_decrypted.txt
-```
-
-Вместо `<IV_HEX>` необходимо указать IV, полученный предыдущей командой.
-
-Аналогично используются:
-
-```text
--aes-128-cfb
--aes-128-ofb
--aes-128-ctr
-```
-
-## OpenSSL -> CryptoCore вручную
-
-Пример CBC.
-
-Шифрование OpenSSL:
-
-```powershell
-openssl enc -aes-128-cbc -K 000102030405060708090a0b0c0d0e0f -iv AABBCCDDEEFF00112233445566778899 -in plaintext.txt -out openssl_cipher.bin
-```
-
-Расшифрование CryptoCore:
+Пример:
 
 ```powershell
 cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --iv AABBCCDDEEFF00112233445566778899 --input openssl_cipher.bin --output restored.txt
 ```
 
-После этого `restored.txt` должен побайтово совпадать с `plaintext.txt`.
+---
 
-## Структура проекта
+# Результат OpenSSL interoperability test
+
+В общем сценарии выполняются:
+
+```text
+ECB:
+    CryptoCore -> OpenSSL
+    OpenSSL -> CryptoCore
+
+CBC:
+    CryptoCore -> OpenSSL
+    OpenSSL -> CryptoCore
+
+CFB:
+    CryptoCore -> OpenSSL
+    OpenSSL -> CryptoCore
+
+OFB:
+    CryptoCore -> OpenSSL
+    OpenSSL -> CryptoCore
+
+CTR:
+    CryptoCore -> OpenSSL
+    OpenSSL -> CryptoCore
+
+Sprint 1 TEST-3:
+    CryptoCore ECB ciphertext
+        ==
+    OpenSSL ECB ciphertext
+```
+
+Всего выполняется 11 проверок.
+
+При успешной работе:
+
+```text
+Result: 11/11 checks passed
+OpenSSL interoperability: PASSED
+```
+
+---
+
+# Структура проекта
 
 ```text
 cryptocore/
@@ -422,6 +779,7 @@ cryptocore/
 |       |-- file_io.py
 |       |-- padding.py
 |       |-- iv.py
+|       |
 |       `-- modes/
 |           |-- __init__.py
 |           |-- ecb.py
@@ -452,90 +810,158 @@ cryptocore/
 `-- .gitignore
 ```
 
-## Реализация режимов
-
-Для реализации AES используется:
-
-```python
-Crypto.Cipher.AES
-```
-
-При этом логика новых режимов написана вручную.
-
-CBC:
+Отдельного файла:
 
 ```text
-plaintext block
-      XOR
-previous ciphertext / IV
-       |
-      AES
-       |
-ciphertext block
+openssl_ecb_verify.py
 ```
 
-CFB:
+в проекте нет.
+
+Проверка ECB выполняется внутри:
 
 ```text
-IV / previous ciphertext
-          |
-         AES
-          |
-      keystream
-          |
-         XOR
-          |
-      ciphertext
+scripts/openssl_interop_test.py
 ```
 
-OFB:
+---
 
-```text
-IV
- |
-AES
- |
-output block
- |
-AES
- |
-next output block
-```
+# Реализация режимов
 
-Полученные выходные блоки используются как поток байтов для XOR с данными.
+## ECB
 
-CTR:
+ECB обрабатывает каждый блок независимо.
 
-```text
-counter
-   |
-  AES
-   |
-keystream
-   |
-  XOR
-   |
-data
-```
+Используется PKCS#7 padding.
 
-После каждого блока счётчик увеличивается на единицу.
+IV не используется.
 
-## Безопасность IV
+---
 
-Для каждого нового шифрования CBC, CFB, OFB или CTR создаётся новый случайный IV:
+## CBC
+
+Для первого блока используется IV.
+
+Перед шифрованием каждый блок открытого текста объединяется XOR с предыдущим ciphertext-блоком.
+
+Для первого блока вместо предыдущего ciphertext используется IV.
+
+Используется PKCS#7 padding.
+
+---
+
+## CFB-128
+
+Для формирования потока AES шифрует IV или предыдущий ciphertext-блок.
+
+Полученный результат объединяется с исходными данными операцией XOR.
+
+Padding не используется.
+
+---
+
+## OFB
+
+Поток формируется последовательным шифрованием предыдущего выходного блока AES.
+
+Первым значением является IV.
+
+Полученный поток объединяется с данными операцией XOR.
+
+Padding не используется.
+
+---
+
+## CTR
+
+IV используется как начальное значение 128-битного счётчика.
+
+Для каждого блока:
+
+1. текущее значение счётчика шифруется AES;
+2. результат объединяется с данными через XOR;
+3. счётчик увеличивается на единицу.
+
+Padding не используется.
+
+---
+
+# Безопасность IV
+
+Для каждого нового шифрования в режимах:
+
+- CBC;
+- CFB;
+- OFB;
+- CTR
+
+генерируется новый случайный IV:
 
 ```python
 os.urandom(16)
 ```
 
-IV не является секретным и поэтому сохраняется непосредственно перед ciphertext.
+IV не является секретным.
 
-Ключ AES при этом в файл не записывается.
+Поэтому он сохраняется непосредственно перед ciphertext.
 
-## Запуск как Python-модуль
+Формат:
 
-Помимо команды `cryptocore`, приложение можно запустить так:
+```text
+IV + ciphertext
+```
+
+AES-ключ в зашифрованный файл не записывается.
+
+---
+
+# Проверка проекта перед сдачей
+
+Запустить все pytest-тесты:
 
 ```powershell
-python -m cryptocore --algorithm aes --mode cbc --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted.bin
+pytest
+```
+
+Запустить round-trip:
+
+```powershell
+python scripts/round_trip_test.py
+```
+
+Добавить OpenSSL в PATH при необходимости:
+
+```powershell
+$env:Path += ";C:\Program Files\OpenSSL-Win64\bin"
+```
+
+Проверить OpenSSL:
+
+```powershell
+openssl version
+```
+
+Запустить полную проверку совместимости:
+
+```powershell
+python scripts/openssl_interop_test.py
+```
+
+Ожидаемый итог:
+
+```text
+Result: 11/11 checks passed
+OpenSSL interoperability: PASSED
+```
+
+После этого можно проверить состояние Git:
+
+```powershell
+git status
+```
+
+Для полностью сохранённого проекта ожидается:
+
+```text
+nothing to commit, working tree clean
 ```
