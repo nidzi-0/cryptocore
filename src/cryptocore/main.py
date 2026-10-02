@@ -1,6 +1,7 @@
 import sys
 
 from .cli_parser import get_arguments, parse_key
+from .csprng import generate_random_bytes
 from .file_io import read_file, write_file
 from .iv import (
     generate_iv,
@@ -13,6 +14,9 @@ from .modes.cbc import encrypt_cbc, decrypt_cbc
 from .modes.cfb import encrypt_cfb, decrypt_cfb
 from .modes.ofb import encrypt_ofb, decrypt_ofb
 from .modes.ctr import encrypt_ctr, decrypt_ctr
+
+
+KEY_SIZE = 16
 
 
 ENCRYPT_FUNCTIONS = {
@@ -38,6 +42,17 @@ def get_default_output_name(
         return input_file + ".enc"
 
     return input_file + ".dec"
+
+
+def get_encryption_key(
+    key_string: str | None
+) -> tuple[bytes, bool]:
+    if key_string is not None:
+        return parse_key(key_string), False
+
+    key = generate_random_bytes(KEY_SIZE)
+
+    return key, True
 
 
 def encrypt_data(
@@ -86,6 +101,7 @@ def decrypt_data(
     if iv_string is not None:
         iv = parse_iv(iv_string)
         ciphertext = data
+
     else:
         iv, ciphertext = split_iv(data)
 
@@ -102,7 +118,21 @@ def main() -> int:
     try:
         args = get_arguments()
 
-        key = parse_key(args.key)
+        generated_key = False
+
+        if args.encrypt:
+            key, generated_key = get_encryption_key(
+                args.key
+            )
+
+            if generated_key:
+                print(
+                    "[INFO] Generated random key: "
+                    f"{key.hex()}"
+                )
+
+        else:
+            key = parse_key(args.key)
 
         input_data = read_file(
             args.input_file
@@ -159,6 +189,7 @@ def main() -> int:
 
     except (
         ValueError,
+        RuntimeError,
         FileNotFoundError,
         PermissionError,
         IsADirectoryError,

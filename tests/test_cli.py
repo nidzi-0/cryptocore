@@ -105,3 +105,49 @@ def test_iv_rejected_for_ecb():
             "--input",
             "cipher.bin",
         ])
+def test_key_optional_for_encryption():
+    args = get_arguments([
+        "--algorithm",
+        "aes",
+        "--mode",
+        "ctr",
+        "--encrypt",
+        "--input",
+        "input.bin",
+    ])
+
+    assert args.encrypt is True
+    assert args.key is None
+
+
+def test_key_required_for_decryption():
+    with pytest.raises(SystemExit):
+        get_arguments([
+            "--algorithm",
+            "aes",
+            "--mode",
+            "ctr",
+            "--decrypt",
+            "--input",
+            "cipher.bin",
+        ])
+
+
+def test_provided_key_still_supported_for_encryption():
+    key_hex = (
+        "000102030405060708090a0b0c0d0e0f"
+    )
+
+    args = get_arguments([
+        "--algorithm",
+        "aes",
+        "--mode",
+        "ctr",
+        "--encrypt",
+        "--key",
+        key_hex,
+        "--input",
+        "input.bin",
+    ])
+
+    assert args.key == key_hex

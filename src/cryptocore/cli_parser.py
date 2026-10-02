@@ -1,5 +1,6 @@
 import argparse
 
+
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="cryptocore",
@@ -49,10 +50,11 @@ def create_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--key",
-        required=True,
+        required=False,
         help=(
             "AES-128 ключ в шестнадцатеричном "
-            "формате."
+            "формате. При шифровании может быть "
+            "сгенерирован автоматически."
         )
     )
 
@@ -86,6 +88,7 @@ def create_parser() -> argparse.ArgumentParser:
 def parse_key(key_string: str) -> bytes:
     try:
         key = bytes.fromhex(key_string)
+
     except ValueError as error:
         raise ValueError(
             "Ключ должен быть корректной "
@@ -106,6 +109,12 @@ def get_arguments(argv=None):
     parser = create_parser()
 
     args = parser.parse_args(argv)
+
+    if args.decrypt and args.key is None:
+        parser.error(
+            "Для расшифрования необходимо "
+            "указать параметр --key."
+        )
 
     if args.encrypt and args.iv is not None:
         parser.error(

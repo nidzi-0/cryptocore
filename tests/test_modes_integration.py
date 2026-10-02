@@ -121,3 +121,39 @@ def test_ecb_still_works():
     )
 
     assert decrypted == data
+def test_generated_encryption_key(monkeypatch):
+    from cryptocore.main import get_encryption_key
+
+    expected_key = bytes.fromhex(
+        "00112233445566778899AABBCCDDEEFF"
+    )
+
+    def fake_generate_random_bytes(num_bytes):
+        assert num_bytes == 16
+        return expected_key
+
+    monkeypatch.setattr(
+        "cryptocore.main.generate_random_bytes",
+        fake_generate_random_bytes
+    )
+
+    key, generated = get_encryption_key(None)
+
+    assert generated is True
+    assert key == expected_key
+    assert len(key) == 16
+
+
+def test_user_key_is_not_replaced():
+    from cryptocore.main import get_encryption_key
+
+    key_hex = (
+        "000102030405060708090A0B0C0D0E0F"
+    )
+
+    key, generated = get_encryption_key(
+        key_hex
+    )
+
+    assert generated is False
+    assert key == bytes.fromhex(key_hex)
