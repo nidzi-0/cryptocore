@@ -18,6 +18,11 @@ from .modes.ctr import encrypt_ctr, decrypt_ctr
 
 KEY_SIZE = 16
 
+WEAK_SEQUENTIAL_KEY = bytes(range(16))
+
+WEAK_REVERSE_SEQUENTIAL_KEY = bytes(
+    range(15, -1, -1)
+)
 
 ENCRYPT_FUNCTIONS = {
     "cbc": encrypt_cbc,
@@ -43,6 +48,39 @@ def get_default_output_name(
 
     return input_file + ".dec"
 
+def get_weak_key_reason(
+    key: bytes
+) -> str | None:
+    if len(set(key)) == 1:
+        return (
+            "ключ состоит из одного "
+            "повторяющегося байта"
+        )
+
+    if key == WEAK_SEQUENTIAL_KEY:
+        return (
+            "ключ содержит последовательные "
+            "байты от 00 до 0F"
+        )
+
+    if key == WEAK_REVERSE_SEQUENTIAL_KEY:
+        return (
+            "ключ содержит обратную "
+            "последовательность байтов"
+        )
+
+    return None
+
+
+def warn_if_weak_key(key: bytes) -> None:
+    reason = get_weak_key_reason(key)
+
+    if reason is not None:
+        print(
+            "[WARNING] Обнаружен потенциально "
+            f"слабый AES-ключ: {reason}.",
+            file=sys.stderr
+        )
 
 def get_encryption_key(
     key_string: str | None
@@ -131,8 +169,12 @@ def main() -> int:
                     f"{key.hex()}"
                 )
 
+            else:
+                warn_if_weak_key(key)
+
         else:
             key = parse_key(args.key)
+            warn_if_weak_key(key)
 
         input_data = read_file(
             args.input_file

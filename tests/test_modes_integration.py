@@ -157,3 +157,58 @@ def test_user_key_is_not_replaced():
 
     assert generated is False
     assert key == bytes.fromhex(key_hex)
+def test_all_zero_key_detected_as_weak():
+    from cryptocore.main import get_weak_key_reason
+
+    key = bytes(16)
+
+    reason = get_weak_key_reason(key)
+
+    assert reason is not None
+
+
+def test_repeated_byte_key_detected_as_weak():
+    from cryptocore.main import get_weak_key_reason
+
+    key = bytes([0xAA]) * 16
+
+    reason = get_weak_key_reason(key)
+
+    assert reason is not None
+
+
+def test_sequential_key_detected_as_weak():
+    from cryptocore.main import get_weak_key_reason
+
+    key = bytes(range(16))
+
+    reason = get_weak_key_reason(key)
+
+    assert reason is not None
+
+
+def test_normal_key_not_detected_as_weak():
+    from cryptocore.main import get_weak_key_reason
+
+    key = bytes.fromhex(
+        "9A38F721C4D05E6B"
+        "8372A19FC6405DBE"
+    )
+
+    reason = get_weak_key_reason(key)
+
+    assert reason is None
+
+
+def test_weak_key_warning_goes_to_stderr(capsys):
+    from cryptocore.main import warn_if_weak_key
+
+    key = bytes(16)
+
+    warn_if_weak_key(key)
+
+    captured = capsys.readouterr()
+
+    assert captured.out == ""
+    assert "[WARNING]" in captured.err
+    assert "слабый AES-ключ" in captured.err
