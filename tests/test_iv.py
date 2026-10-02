@@ -71,3 +71,24 @@ def test_split_too_short_file():
 
     with pytest.raises(ValueError):
         split_iv(data)
+
+def test_generate_iv_uses_csprng(monkeypatch):
+    expected_iv = bytes.fromhex(
+        "00112233445566778899AABBCCDDEEFF"
+    )
+
+    def fake_generate_random_bytes(num_bytes):
+        assert num_bytes == 16
+        return expected_iv
+
+    monkeypatch.setattr(
+        "cryptocore.iv.generate_random_bytes",
+        fake_generate_random_bytes
+    )
+
+    from cryptocore.iv import generate_iv
+
+    iv = generate_iv()
+
+    assert iv == expected_iv
+    assert len(iv) == 16
