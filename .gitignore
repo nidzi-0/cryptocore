@@ -28,3 +28,5 @@ roundtrip_decrypted.txt
 # OS files
 .DS_Store
 Thumbs.db
+nist_test_data.bin
+
