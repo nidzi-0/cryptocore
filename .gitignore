@@ -33,3 +33,5 @@ nist_test_data.bin
 large_hash_test.bin
 plaintext.sha256
 
+large_hmac_test.bin
+plaintext.hmac
