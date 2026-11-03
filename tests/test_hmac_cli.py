@@ -348,3 +348,108 @@ def test_hmac_detects_wrong_key(
         "[ERROR] HMAC verification failed"
         in captured.err
     )
+def test_hmac_cli_process_exit_codes(
+    tmp_path,
+):
+    import subprocess
+    import sys
+
+    input_file = (
+        tmp_path / "message.txt"
+    )
+
+    hmac_file_path = (
+        tmp_path / "message.hmac"
+    )
+
+    input_file.write_bytes(
+        b"original content"
+    )
+
+    key = (
+        "00112233445566778899aabbccddeeff"
+    )
+
+    # Генерируем HMAC через настоящий CLI.
+    generate = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "cryptocore",
+            "dgst",
+            "--algorithm",
+            "sha256",
+            "--hmac",
+            "--key",
+            key,
+            "--input",
+            str(input_file),
+            "--output",
+            str(hmac_file_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert generate.returncode == 0
+    assert hmac_file_path.exists()
+
+    # Правильный файл + правильный ключ.
+    verify_ok = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "cryptocore",
+            "dgst",
+            "--algorithm",
+            "sha256",
+            "--hmac",
+            "--key",
+            key,
+            "--input",
+            str(input_file),
+            "--verify",
+            str(hmac_file_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert verify_ok.returncode == 0
+
+    assert (
+        "[OK] HMAC verification successful"
+        in verify_ok.stdout
+    )
+
+    # Изменяем файл.
+    input_file.write_bytes(
+        b"modified content"
+    )
+
+    verify_failed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "cryptocore",
+            "dgst",
+            "--algorithm",
+            "sha256",
+            "--hmac",
+            "--key",
+            key,
+            "--input",
+            str(input_file),
+            "--verify",
+            str(hmac_file_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert verify_failed.returncode != 0
+
+    assert (
+        "[ERROR] HMAC verification failed"
+        in verify_failed.stderr
+    )
