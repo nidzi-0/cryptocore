@@ -1,4 +1,4 @@
-﻿from cryptocore import digest
+from cryptocore import digest
 
 
 GIB = 1024 * 1024 * 1024
@@ -7,16 +7,16 @@ LOGICAL_SIZE = 20 * GIB + 123
 
 
 class VirtualHugeFile:
-    """
-    иртуальный вход размером больше 20 GiB.
-     памяти одновременно находится только один chunk.
-    """
 
     def __init__(self, size: int):
         self.remaining = size
         self.total_read = 0
         self.max_read_size = 0
-        self.chunk = b"\x00" * digest.CHUNK_SIZE
+
+        self.chunk = (
+            b"\x00"
+            * digest.CHUNK_SIZE
+        )
 
     def read(self, size: int) -> bytes:
         self.max_read_size = max(
@@ -42,11 +42,6 @@ class VirtualHugeFile:
 
 
 class CountingHMAC:
-    """
-    Тестовое ядро для проверки только
-    потоковой обработки больших данных.
-    """
-
     def __init__(self, key: bytes):
         self.key = key
         self.total_bytes = 0
@@ -55,7 +50,7 @@ class CountingHMAC:
         self.total_bytes += len(data)
         return self
 
-    def hexdigest(self):
+    def hexdigest(self) -> str:
         return format(
             self.total_bytes,
             "x",
@@ -63,7 +58,9 @@ class CountingHMAC:
 
 
 def main() -> int:
-    original_hmac = digest.HMACSHA256
+    original_hmac = (
+        digest.HMACSHA256
+    )
 
     stream = VirtualHugeFile(
         LOGICAL_SIZE
@@ -74,7 +71,9 @@ def main() -> int:
     )
 
     try:
-        digest.HMACSHA256 = CountingHMAC
+        digest.HMACSHA256 = (
+            CountingHMAC
+        )
 
         result = digest.hmac_stream(
             stream,
@@ -82,7 +81,9 @@ def main() -> int:
         )
 
     finally:
-        digest.HMACSHA256 = original_hmac
+        digest.HMACSHA256 = (
+            original_hmac
+        )
 
     expected = format(
         LOGICAL_SIZE,
@@ -110,13 +111,22 @@ def main() -> int:
         )
         return 1
 
+    if stream.remaining != 0:
+        print(
+            "Huge HMAC streaming test: FAILED"
+        )
+        return 1
+
     if result != expected:
         print(
             "Huge HMAC streaming test: FAILED"
         )
         return 1
 
-    if stream.max_read_size > digest.CHUNK_SIZE:
+    if (
+        stream.max_read_size
+        > digest.CHUNK_SIZE
+    ):
         print(
             "Huge HMAC streaming test: FAILED"
         )

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cryptocore"
 version = "1.0.0"
-description = "Command-line AES-128 ECB file encryption and decryption tool."
+description = "Educational cryptographic CLI with AES-128 modes, SHA-256, SHA3-256, CSPRNG and HMAC-SHA256."
 requires-python = ">=3.10"
 
 dependencies = [

@@ -2,25 +2,32 @@
 
 CryptoCore — учебное консольное приложение на Python для выполнения криптографических операций с файлами.
 
-В проекте последовательно реализованы требования Sprint 1–5:
+Проект последовательно развивается по Sprint и на текущем этапе включает:
 
 - AES-128 ECB;
 - AES-128 CBC;
 - AES-128 CFB-128;
 - AES-128 OFB;
 - AES-128 CTR;
-- PKCS#7;
-- генерация IV;
+- PKCS#7 padding;
+- генерацию IV;
 - CSPRNG;
-- автоматическая генерация AES-ключей;
+- автоматическую генерацию AES-128 ключей;
 - SHA-256;
 - SHA3-256;
 - HMAC-SHA256;
-- потоковая обработка файлов;
-- проверка HMAC;
+- потоковую обработку файлов;
+- проверку целостности и подлинности;
 - автоматические тесты;
-- проверка совместимости с OpenSSL;
-- статистическая проверка CSPRNG через NIST STS.
+- официальные NIST test vectors;
+- проверку совместимости с OpenSSL и системными утилитами;
+- статистическую проверку CSPRNG через NIST STS.
+
+Репозиторий:
+
+```text
+https://github.com/nidzi-0/cryptocore
+```
 
 ---
 
@@ -31,14 +38,15 @@ CryptoCore — учебное консольное приложение на Pyt
 - Python 3.10 или новее;
 - PyCryptodome;
 - pytest;
-- OpenSSL — для проверки совместимости;
+- OpenSSL — для interoperability-проверок;
+- WSL/Linux — для некоторых системных проверок;
 - NIST Statistical Test Suite 2.1.2 — для статистической проверки CSPRNG.
 
 ---
 
 # Установка
 
-Клонирование репозитория:
+Клонирование:
 
 ```powershell
 git clone https://github.com/nidzi-0/cryptocore.git
@@ -85,14 +93,13 @@ python -m cryptocore --help
 
 # Sprint 1 — AES-128 ECB
 
-В Sprint 1 была реализована базовая структура CryptoCore.
+В Sprint 1 была создана базовая структура проекта.
 
-Основные возможности:
+Реализованы:
 
-- AES-128;
-- режим ECB;
+- CLI;
+- AES-128 ECB;
 - PKCS#7 padding;
-- командная строка;
 - работа с файлами;
 - автоматические тесты;
 - проверка совместимости с OpenSSL.
@@ -101,22 +108,10 @@ python -m cryptocore --help
 
 # AES-128 ECB
 
-ECB обрабатывает каждый 16-байтовый блок независимо.
+AES работает с блоками размером:
 
-Для ECB IV не используется.
-
-Используется PKCS#7 padding.
-
-Пример шифрования:
-
-```powershell
-cryptocore --algorithm aes --mode ecb --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_ecb.bin
-```
-
-Расшифрование:
-
-```powershell
-cryptocore --algorithm aes --mode ecb --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_ecb.bin --output decrypted_ecb.txt
+```text
+16 байт
 ```
 
 AES-128 использует ключ длиной:
@@ -131,11 +126,27 @@ AES-128 использует ключ длиной:
 32 hexadecimal-символа
 ```
 
-Например:
+Пример ключа:
 
 ```text
 000102030405060708090a0b0c0d0e0f
 ```
+
+Шифрование:
+
+```powershell
+cryptocore --algorithm aes --mode ecb --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_ecb.bin
+```
+
+Расшифрование:
+
+```powershell
+cryptocore --algorithm aes --mode ecb --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_ecb.bin --output decrypted_ecb.txt
+```
+
+ECB не использует IV.
+
+Для ECB применяется PKCS#7 padding.
 
 ---
 
@@ -150,7 +161,7 @@ CBC
 
 используют PKCS#7 padding.
 
-Если длина сообщения уже кратна размеру блока AES, добавляется полный блок padding.
+Если длина данных уже кратна 16 байтам, добавляется полный блок padding.
 
 Режимы:
 
@@ -166,7 +177,7 @@ CTR
 
 # Sprint 2 — дополнительные режимы AES
 
-В Sprint 2 были добавлены:
+В Sprint 2 добавлены:
 
 - CBC;
 - CFB-128;
@@ -174,8 +185,8 @@ CTR
 - CTR;
 - генерация IV;
 - параметр `--iv`;
-- формат хранения `<IV><ciphertext>`;
-- двусторонняя совместимость с OpenSSL.
+- формат `<IV><ciphertext>`;
+- двусторонняя interoperability-проверка с OpenSSL.
 
 Логика режимов реализована самостоятельно поверх AES-примитива.
 
@@ -183,9 +194,13 @@ CTR
 
 # AES-128 CBC
 
-CBC использует IV длиной 16 байт.
+CBC использует IV длиной:
 
-Каждый блок plaintext объединяется через XOR с предыдущим ciphertext-блоком.
+```text
+16 байт
+```
+
+Каждый plaintext-блок объединяется через XOR с предыдущим ciphertext-блоком.
 
 Для первого блока используется IV.
 
@@ -201,7 +216,7 @@ cryptocore --algorithm aes --mode cbc --encrypt --key 000102030405060708090a0b0c
 cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_cbc.bin --output decrypted_cbc.txt
 ```
 
-Формат файла:
+Формат зашифрованного файла:
 
 ```text
 <16-byte IV><ciphertext>
@@ -211,7 +226,11 @@ cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c
 
 # AES-128 CFB-128
 
-CFB реализован с размером сегмента 128 бит.
+CFB реализован с размером сегмента:
+
+```text
+128 бит
+```
 
 Padding не используется.
 
@@ -287,7 +306,7 @@ OFB
 CTR
 ```
 
-используется 16-байтовый IV.
+используется IV длиной 16 байт.
 
 ECB IV не использует.
 
@@ -301,9 +320,9 @@ ECB IV не использует.
 
 AES-ключ в ciphertext не записывается.
 
-При расшифровании CryptoCore может автоматически получить IV из первых 16 байт файла.
+При расшифровании IV автоматически извлекается из первых 16 байт файла.
 
-Также можно указать IV вручную:
+Также поддерживается явное указание IV:
 
 ```powershell
 cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --iv AABBCCDDEEFF00112233445566778899 --input openssl_cipher.bin --output restored.txt
@@ -319,10 +338,11 @@ cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c
 - `os.urandom()`;
 - автоматическая генерация AES-ключей;
 - генерация IV через общий CSPRNG;
-- проверка потенциально слабых пользовательских ключей;
-- тесты случайности;
-- подготовка данных для NIST STS;
-- проверка CSPRNG через NIST STS.
+- проверка потенциально слабых ключей;
+- тесты уникальности;
+- проверка распределения битов;
+- генерация данных NIST;
+- статистическая проверка через NIST STS.
 
 ---
 
@@ -340,33 +360,25 @@ src/cryptocore/csprng.py
 generate_random_bytes(num_bytes: int) -> bytes
 ```
 
-Для генерации используются криптографически стойкие случайные данные:
+Для генерации криптографически стойких случайных данных используется:
 
 ```python
 os.urandom()
 ```
 
-Обычный модуль:
+Стандартный модуль:
 
 ```python
 random
 ```
 
-для криптографических ключей и IV не используется.
+для генерации ключей и IV не используется.
 
 ---
 
 # Автоматическая генерация AES-ключа
 
-При шифровании параметр:
-
-```text
---key
-```
-
-можно не указывать.
-
-В этом случае CryptoCore создаёт случайный 16-байтовый AES-128 ключ.
+При шифровании `--key` можно не указывать.
 
 Пример:
 
@@ -374,15 +386,18 @@ random
 cryptocore --algorithm aes --mode ctr --encrypt --input plaintext.txt --output ciphertext.bin
 ```
 
-Программа выводит созданный ключ:
+В этом случае CryptoCore создаёт случайный AES-128 ключ.
+
+Программа выводит:
 
 ```text
 [INFO] Generated random key: <hex-key>
 ```
 
-Ключ:
+Сгенерированный ключ:
 
-- состоит из 16 случайных байт;
+- имеет длину 16 байт;
+- создаётся через CSPRNG;
 - выводится в hexadecimal-формате;
 - не записывается в ciphertext.
 
@@ -390,16 +405,16 @@ cryptocore --algorithm aes --mode ctr --encrypt --input plaintext.txt --output c
 
 ---
 
-# Проверка слабых AES-ключей
+# Проверка потенциально слабых AES-ключей
 
-CryptoCore выполняет базовую проверку пользовательского AES-ключа.
+CryptoCore обнаруживает некоторые очевидные слабые пользовательские ключи.
 
-Предупреждение создаётся, например, для:
+Проверяются:
 
-- одинаковых повторяющихся байтов;
-- полностью нулевого ключа;
-- последовательности от `00` до `0F`;
-- обратной последовательности.
+- одинаковые повторяющиеся байты;
+- полностью нулевой ключ;
+- последовательность `00–0F`;
+- обратная последовательность `0F–00`.
 
 Пример:
 
@@ -413,7 +428,7 @@ CryptoCore выполняет базовую проверку пользоват
 [WARNING] Обнаружен потенциально слабый AES-ключ: ...
 ```
 
-Операция не блокируется.
+Операция при этом не прерывается.
 
 ---
 
@@ -425,7 +440,7 @@ CryptoCore выполняет базовую проверку пользоват
 NIST Statistical Test Suite 2.1.2
 ```
 
-Подготовка данных выполняется скриптом:
+Подготовка данных:
 
 ```text
 scripts/generate_nist_data.py
@@ -437,7 +452,7 @@ scripts/generate_nist_data.py
 nist_test_data.bin
 ```
 
-размером:
+Размер:
 
 ```text
 10 000 000 байт
@@ -451,15 +466,13 @@ nist_test_data.bin
 Общий объём: 80 000 000 бит
 ```
 
-Были выполнены все 15 групп статистических тестов NIST STS.
-
-Итоговая проверка показала соответствие статистическим критериям.
+Были запущены все 15 групп статистических тестов NIST STS.
 
 ---
 
 # OpenSSL interoperability AES
 
-Для проверки AES используется:
+Для проверки используется:
 
 ```text
 scripts/openssl_interop_test.py
@@ -472,7 +485,7 @@ $env:Path += ";C:\Program Files\OpenSSL-Win64\bin"
 python .\scripts\openssl_interop_test.py
 ```
 
-Проверяются режимы:
+Проверяются:
 
 ```text
 ECB
@@ -482,14 +495,14 @@ OFB
 CTR
 ```
 
-Для них выполняются направления:
+Для каждого режима выполняется проверка:
 
 ```text
 CryptoCore -> OpenSSL
 OpenSSL -> CryptoCore
 ```
 
-Также выполняется прямое сравнение ciphertext для ECB.
+Для ECB дополнительно выполняется прямое сравнение ciphertext.
 
 Полученный результат:
 
@@ -502,23 +515,28 @@ OpenSSL interoperability: PASSED
 
 # Sprint 4 — криптографические хеш-функции
 
-В Sprint 4 добавлены:
+В Sprint 4 реализованы:
 
 - SHA-256;
 - SHA3-256;
-- отдельная команда `dgst`;
-- потоковое чтение файлов;
+- команда `dgst`;
+- `--algorithm`;
+- `--input`;
 - `--output`;
+- binary file I/O;
+- chunked processing;
 - Known-Answer Tests;
+- официальные NIST test vectors;
+- NIST Monte Carlo tests;
 - interoperability;
 - avalanche effect;
-- проверки больших данных.
+- проверка обработки объёма более 1 GiB.
 
 ---
 
 # SHA-256
 
-Реализация находится в:
+Реализация:
 
 ```text
 src/cryptocore/hash/sha256.py
@@ -528,7 +546,7 @@ SHA-256 реализован самостоятельно без использ�
 
 Реализованы:
 
-- 512-битные блоки;
+- обработка 512-битных блоков;
 - восемь начальных значений состояния;
 - 64 round constants;
 - Ch;
@@ -540,10 +558,10 @@ SHA-256 реализован самостоятельно без использ�
 - message schedule;
 - 64 раунда compression function;
 - padding;
-- добавление длины сообщения;
+- 64-битное представление длины сообщения;
 - incremental update.
 
-Поддерживаются:
+Поддерживаются методы:
 
 ```python
 update()
@@ -563,13 +581,14 @@ src/cryptocore/hash/sha3_256.py
 
 SHA3-256 также реализован самостоятельно.
 
+Используется Keccak sponge construction.
+
 Реализованы:
 
-- sponge construction;
-- Keccak-f[1600];
 - состояние 1600 бит;
 - rate 1088 бит;
 - capacity 512 бит;
+- Keccak-f[1600];
 - 24 раунда;
 - Theta;
 - Rho;
@@ -577,32 +596,72 @@ SHA3-256 также реализован самостоятельно.
 - Chi;
 - Iota;
 - SHA-3 domain separation;
-- padding.
+- padding;
+- 256-битный digest.
+
+---
+
+# Security properties SHA-256 и SHA3-256
+
+SHA-256 и SHA3-256 формируют результат длиной:
+
+```text
+256 бит
+```
+
+Для идеализированной 256-битной криптографической хеш-функции ожидаемый уровень стойкости составляет:
+
+```text
+Preimage resistance:          около 2^256
+Second-preimage resistance:   около 2^256
+Collision resistance:         около 2^128
+```
+
+Коллизионная стойкость ограничена birthday bound.
+
+SHA-256 относится к семейству SHA-2 и использует конструкцию Merkle-Damgård.
+
+SHA3-256 основан на Keccak sponge construction и принципиально отличается внутренним устройством от SHA-256.
+
+Для SHA3-256 используются:
+
+```text
+state    = 1600 бит
+rate     = 1088 бит
+capacity = 512 бит
+digest   = 256 бит
+```
+
+Криптографический хеш предназначен для контроля целостности данных.
+
+Сам по себе обычный SHA-256 или SHA3-256 не подтверждает, кто сформировал данные, поскольку для вычисления обычного хеша не требуется секрет.
+
+Для проверки одновременно целостности и подлинности в Sprint 5 используется HMAC-SHA256.
 
 ---
 
 # Команда dgst
 
-Для хеширования используется:
+Для вычисления хешей используется:
 
 ```text
 cryptocore dgst
 ```
 
-Поддерживаемые алгоритмы:
+Поддерживаются алгоритмы:
 
 ```text
 sha256
 sha3-256
 ```
 
-Пример SHA-256:
+SHA-256:
 
 ```powershell
 cryptocore dgst --algorithm sha256 --input plaintext.txt
 ```
 
-Пример SHA3-256:
+SHA3-256:
 
 ```powershell
 cryptocore dgst --algorithm sha3-256 --input plaintext.txt
@@ -614,19 +673,25 @@ cryptocore dgst --algorithm sha3-256 --input plaintext.txt
 HASH_VALUE  INPUT_FILE_PATH
 ```
 
-Результат выводится lowercase hexadecimal.
+Хеш выводится lowercase hexadecimal.
 
 ---
 
 # Сохранение хеша
 
-Можно использовать:
+Поддерживается:
+
+```text
+--output
+```
+
+Пример:
 
 ```powershell
 cryptocore dgst --algorithm sha256 --input plaintext.txt --output plaintext.sha256
 ```
 
-Файл содержит:
+Формат файла:
 
 ```text
 HASH_VALUE  INPUT_FILE_PATH
@@ -634,15 +699,15 @@ HASH_VALUE  INPUT_FILE_PATH
 
 ---
 
-# Потоковое хеширование
+# Потоковая обработка хешей
 
-Файлы открываются в бинарном режиме:
+Файл открывается в бинарном режиме:
 
 ```python
 rb
 ```
 
-и обрабатываются блоками:
+и читается блоками:
 
 ```text
 8192 байт
@@ -666,13 +731,13 @@ next chunk
 digest
 ```
 
-Весь файл целиком в оперативную память не загружается.
+Полный файл не загружается в оперативную память.
 
 ---
 
 # Known-Answer Tests SHA-256
 
-Для пустого сообщения:
+Пустое сообщение:
 
 ```text
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
@@ -706,7 +771,7 @@ abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq
 
 # Known-Answer Tests SHA3-256
 
-Для пустого сообщения:
+Пустое сообщение:
 
 ```text
 a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a
@@ -726,57 +791,129 @@ abc
 
 ---
 
+# Официальные NIST test vectors
+
+В проект добавлены официальные NIST `.rsp` test vectors.
+
+Каталог:
+
+```text
+tests/vectors/nist/
+```
+
+Файлы SHA-256:
+
+```text
+SHA256ShortMsg.rsp
+SHA256LongMsg.rsp
+SHA256Monte.rsp
+```
+
+Файлы SHA3-256:
+
+```text
+SHA3_256ShortMsg.rsp
+SHA3_256LongMsg.rsp
+SHA3_256Monte.rsp
+```
+
+Short и Long vectors проверяются автоматически через:
+
+```text
+tests/test_nist_hash_vectors.py
+```
+
+Запуск:
+
+```powershell
+pytest .\tests\test_nist_hash_vectors.py -v -s
+```
+
+Проверяются:
+
+```text
+SHA-256 Short Message
+SHA-256 Long Message
+SHA3-256 Short Message
+SHA3-256 Long Message
+```
+
+---
+
+# NIST Monte Carlo
+
+Для Monte Carlo используется отдельный скрипт:
+
+```text
+scripts/nist_hash_monte_test.py
+```
+
+Запуск:
+
+```powershell
+python .\scripts\nist_hash_monte_test.py
+```
+
+Проверяются официальные checkpoint-значения из:
+
+```text
+SHA256Monte.rsp
+SHA3_256Monte.rsp
+```
+
+Monte Carlo запускается отдельно от обычного `pytest`, поскольку содержит значительно больше вычислений.
+
+---
+
 # Interoperability SHA-256
 
-Проверка выполнялась через:
+Проверка выполнялась с системной Linux-утилитой:
 
 ```bash
 sha256sum plaintext.txt
 ```
 
-Результат CryptoCore совпал с результатом `sha256sum`.
-
-```text
-SHA-256 interoperability: PASSED
-```
+Полученный SHA-256 CryptoCore совпадает с системным значением.
 
 ---
 
 # Interoperability SHA3-256
 
-SHA3-256 был независимо проверен через OpenSSL:
+SHA3-256 независимо проверялся через OpenSSL:
 
 ```bash
 openssl dgst -sha3-256 plaintext.txt
 ```
 
-Результаты совпали:
+Значение CryptoCore совпадает с OpenSSL.
 
-```text
-SHA3-256 OpenSSL interoperability: PASSED
+Для среды, где доступна нужная SHA3-утилита, также может использоваться:
+
+```bash
+sha3sum -a 256 plaintext.txt
 ```
 
 ---
 
 # Avalanche Effect
 
-Добавлен тест:
+Тест:
 
 ```text
 tests/test_hash_avalanche.py
 ```
 
-В исходном сообщении изменяется один бит.
+В исходных данных изменяется один бит.
 
-После этого сравниваются два 256-битных хеша.
+После этого сравниваются два 256-битных digest.
 
-В тесте используется диапазон:
+Проверяется количество отличающихся битов:
 
 ```text
 100 < changed_bits < 156
 ```
 
-Проверяются:
+Тестируется:
 
 ```text
 SHA-256
@@ -785,11 +922,78 @@ SHA3-256
 
 ---
 
-# Sprint 5 — HMAC
+# Проверка больших данных Sprint 4
 
-Цель Sprint 5 — добавить механизм проверки подлинности и целостности данных.
+В проекте предусмотрены два уровня проверки.
 
-В проект добавлен:
+## Реальный файл больше 1 GiB
+
+Скрипт:
+
+```text
+scripts/hash_large_file_test.py
+```
+
+создаёт sparse-файл размером:
+
+```text
+1 073 741 825 байт
+```
+
+то есть больше 1 GiB.
+
+Для файла вычисляются:
+
+```text
+SHA-256
+SHA3-256
+```
+
+Результаты сравниваются с:
+
+```python
+hashlib.sha256()
+hashlib.sha3_256()
+```
+
+Скрипт запускается отдельно:
+
+```powershell
+python .\scripts\hash_large_file_test.py
+```
+
+Он не включён в обычный `pytest`, поскольку самописные SHA-256 и особенно SHA3-256 существенно медленнее оптимизированных библиотечных реализаций.
+
+## Проверка streaming >1 GiB
+
+Автоматический тест:
+
+```text
+tests/test_large_hash_streaming.py
+```
+
+создаёт виртуальный поток размером:
+
+```text
+1 GiB + 1 байт
+```
+
+и проверяет, что `hash_stream()`:
+
+- обрабатывает весь логический объём;
+- не загружает данные целиком;
+- вызывает `read()` блоками;
+- использует `CHUNK_SIZE = 8192`.
+
+Криптографическая корректность самих SHA-функций при этом независимо проверяется NIST vectors.
+
+---
+
+# Sprint 5 — HMAC-SHA256
+
+Цель Sprint 5 — реализовать механизм проверки целостности и подлинности данных.
+
+Добавлен:
 
 ```text
 HMAC-SHA256
@@ -801,15 +1005,24 @@ HMAC-SHA256
 src/cryptocore/mac/hmac.py
 ```
 
-HMAC реализован самостоятельно и использует SHA-256, созданный в Sprint 4.
+HMAC реализован самостоятельно.
 
-Стандартный Python-модуль `hmac` в основной реализации HMAC не используется.
+В основной реализации стандартные:
+
+```python
+hmac
+hashlib
+```
+
+не используются.
+
+В качестве внутренней хеш-функции применяется собственная реализация SHA-256 из Sprint 4.
 
 ---
 
-# Принцип работы HMAC
+# Конструкция HMAC
 
-Используется конструкция:
+Используется классическая конструкция:
 
 ```text
 HMAC(K, m) =
@@ -820,10 +1033,10 @@ H((K XOR opad) || H((K XOR ipad) || m))
 
 ```text
 H     = SHA-256
-ipad  = байт 0x36, повторённый 64 раза
-opad  = байт 0x5C, повторённый 64 раза
-K     = ключ
+K     = секретный ключ
 m     = сообщение
+ipad  = 0x36 repeated 64 times
+opad  = 0x5C repeated 64 times
 ```
 
 Размер блока SHA-256:
@@ -834,47 +1047,99 @@ m     = сообщение
 
 ---
 
+# Security properties HMAC-SHA256
+
+HMAC-SHA256 предназначен для проверки одновременно:
+
+- целостности данных;
+- подлинности данных.
+
+В отличие от обычного SHA-256, HMAC использует секретный ключ.
+
+Если получатель владеет тем же секретным ключом, он может проверить:
+
+- что содержимое сообщения не было изменено;
+- что корректный MAC был создан стороной, обладающей секретным ключом.
+
+HMAC:
+
+- не шифрует данные;
+- не обеспечивает конфиденциальность;
+- не скрывает содержимое сообщения.
+
+Безопасность HMAC зависит от:
+
+- сохранения ключа в тайне;
+- качества ключевого материала;
+- стойкости используемой хеш-функции.
+
+В CryptoCore используется:
+
+```text
+HMAC-SHA256
+```
+
+с собственной реализацией SHA-256.
+
+Для проверки вычисленного и ожидаемого значения применяется:
+
+```python
+secrets.compare_digest()
+```
+
+Это предпочтительнее обычного посимвольного сравнения MAC-значений.
+
+Секретный ключ не должен передаваться или храниться вместе с защищаемым сообщением и его HMAC.
+
+---
+
 # Обработка HMAC-ключа
 
-HMAC поддерживает ключи произвольной длины.
+HMAC поддерживает ключ произвольной длины.
 
-Если ключ длиннее 64 байт:
+Если ключ длиннее блока SHA-256:
+
+```text
+len(key) > 64
+```
+
+то сначала выполняется:
 
 ```text
 key = SHA256(key)
 ```
 
-Если ключ короче 64 байт:
+Если ключ короче 64 байт, он дополняется нулевыми байтами:
 
 ```text
 key = key || zero padding
 ```
 
-до размера:
+до:
 
 ```text
-64 байта
+64 байт
 ```
 
-Если ключ имеет длину ровно 64 байта, он используется без дополнительного хеширования.
+Если ключ имеет длину ровно 64 байта, дополнительное хеширование не выполняется.
 
 ---
 
-# Команда HMAC
+# CLI HMAC
 
-HMAC вызывается через существующую команду:
+HMAC интегрирован в существующую команду:
 
 ```text
 cryptocore dgst
 ```
 
-с параметром:
+Используется флаг:
 
 ```text
 --hmac
 ```
 
-Для HMAC необходимо указать:
+При HMAC обязательны:
 
 ```text
 --algorithm sha256
@@ -883,7 +1148,7 @@ cryptocore dgst
 --input
 ```
 
-Ключ передаётся в hexadecimal-формате.
+Ключ передаётся как hexadecimal-строка.
 
 ---
 
@@ -895,25 +1160,19 @@ cryptocore dgst
 cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff --input plaintext.txt
 ```
 
-Формат результата:
+Формат вывода:
 
 ```text
 HMAC_VALUE  INPUT_FILE_PATH
-```
-
-Например:
-
-```text
-0123456789abcdef...  plaintext.txt
 ```
 
 HMAC выводится lowercase hexadecimal.
 
 ---
 
-# Сохранение HMAC в файл
+# Сохранение HMAC
 
-Поддерживается параметр:
+Поддерживается:
 
 ```text
 --output
@@ -925,7 +1184,7 @@ HMAC выводится lowercase hexadecimal.
 cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff --input plaintext.txt --output plaintext.hmac
 ```
 
-Файл содержит:
+Формат файла:
 
 ```text
 HMAC_VALUE  INPUT_FILE_PATH
@@ -947,7 +1206,7 @@ HMAC_VALUE  INPUT_FILE_PATH
 cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff --input plaintext.txt --verify plaintext.hmac
 ```
 
-При успешной проверке:
+Если значение совпадает:
 
 ```text
 [OK] HMAC verification successful
@@ -959,7 +1218,7 @@ cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff
 0
 ```
 
-При несовпадении:
+Если значение не совпадает:
 
 ```text
 [ERROR] HMAC verification failed
@@ -973,46 +1232,32 @@ cryptocore dgst --algorithm sha256 --hmac --key 00112233445566778899aabbccddeeff
 
 ---
 
-# Формат файла проверки
+# Формат expected HMAC
 
-Файл HMAC может содержать:
+Файл проверки может иметь стандартный формат:
 
 ```text
 HMAC_VALUE  INPUT_FILE_PATH
 ```
 
-При чтении ожидаемого значения CryptoCore использует HMAC в начале строки.
+При чтении CryptoCore использует первый whitespace-separated элемент как HMAC.
 
-Имя файла и дополнительные пробельные символы не влияют на сравнение.
-
----
-
-# Безопасное сравнение HMAC
-
-Для сравнения вычисленного и ожидаемого HMAC используется:
-
-```python
-secrets.compare_digest()
-```
-
-Это позволяет избежать обычного посимвольного сравнения значений MAC.
+Имя файла после значения может игнорироваться.
 
 ---
 
 # Потоковая обработка HMAC
 
-HMAC не загружает весь файл в оперативную память.
+Входной файл открывается в бинарном режиме:
 
-Файл читается блоками:
+```python
+rb
+```
+
+и читается блоками:
 
 ```text
 8192 байт
-```
-
-Для каждого блока вызывается:
-
-```python
-HMACSHA256.update()
 ```
 
 Схема:
@@ -1033,27 +1278,25 @@ next chunk
 HMAC digest
 ```
 
-Потребление памяти при этом не зависит от полного размера входного файла.
+Весь файл не загружается в память.
 
 ---
 
-# RFC 4231
+# RFC 4231 Known-Answer Tests
 
-Для проверки HMAC-SHA256 используются Known-Answer Tests из RFC 4231.
-
-Реализованы обязательные тестовые случаи:
-
-```text
-Test Case 1
-Test Case 2
-Test Case 3
-Test Case 4
-```
-
-Тесты находятся в:
+Файл:
 
 ```text
 tests/test_hmac_vectors.py
+```
+
+Реализованы обязательные:
+
+```text
+RFC 4231 Test Case 1
+RFC 4231 Test Case 2
+RFC 4231 Test Case 3
+RFC 4231 Test Case 4
 ```
 
 ---
@@ -1110,7 +1353,7 @@ what do ya want for nothing?
 aa repeated 20 times
 ```
 
-Данные:
+Сообщение:
 
 ```text
 dd repeated 50 times
@@ -1126,15 +1369,29 @@ dd repeated 50 times
 
 # RFC 4231 Test Case 4
 
-Проверяется ещё один официальный тестовый вектор RFC 4231 с бинарным ключом и сообщением.
+В Test Case 4 используется бинарный ключ:
 
-Результат CryptoCore совпадает с ожидаемым HMAC-SHA256.
+```text
+0102030405060708090a0b0c0d0e0f10111213141516171819
+```
+
+и сообщение из 50 байтов:
+
+```text
+cd
+```
+
+Ожидаемый HMAC-SHA256:
+
+```text
+82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b
+```
 
 ---
 
-# Проверка размеров ключей
+# Проверка ключей разных размеров
 
-Тестами проверяются ключи:
+Автоматически проверяются HMAC-ключи:
 
 ```text
 16 байт
@@ -1142,34 +1399,43 @@ dd repeated 50 times
 100 байт
 ```
 
-Таким образом проверены:
+Это покрывает:
 
-- ключ короче блока SHA-256;
+- ключ короче блока;
 - ключ, равный размеру блока;
 - ключ длиннее блока.
 
+Для сравнения в тестах используется стандартная библиотека Python:
+
+```python
+hmac
+hashlib.sha256
+```
+
+Она применяется только как эталон в тестах, а не в основной реализации CryptoCore.
+
 ---
 
-# Пустое сообщение
+# Empty Input HMAC
 
-HMAC корректно вычисляется для пустого сообщения:
+Проверяется вычисление HMAC для:
 
-```text
+```python
 b""
 ```
 
-Результат дополнительно сравнивается с эталонной реализацией Python в автоматическом тесте.
+Результат сравнивается с эталонной реализацией Python.
 
 ---
 
 # Tamper Detection — изменение файла
 
-Проверяется следующий сценарий:
+Тест:
 
-1. создаётся HMAC исходного файла;
-2. содержимое файла изменяется;
-3. выполняется `--verify`;
-4. проверка должна завершиться ошибкой.
+1. создаёт HMAC исходного файла;
+2. изменяет содержимое;
+3. выполняет `--verify`;
+4. ожидает ошибку.
 
 Результат:
 
@@ -1177,19 +1443,21 @@ b""
 [ERROR] HMAC verification failed
 ```
 
-Это показывает, что изменение содержимого файла обнаруживается.
+Код возврата:
+
+```text
+1
+```
 
 ---
 
 # Tamper Detection — неверный ключ
 
-Также выполняется проверка с другим ключом.
+Тест:
 
-Алгоритм:
-
-1. HMAC создаётся с первым ключом;
-2. выполняется проверка с другим ключом;
-3. значения HMAC не совпадают.
+1. создаёт HMAC одним ключом;
+2. выполняет проверку другим ключом;
+3. ожидает несовпадение.
 
 Результат:
 
@@ -1199,52 +1467,66 @@ b""
 
 ---
 
-# Проверка потокового HMAC
+# Реальные CLI exit codes
 
-Добавлен специальный автоматический тест, который контролирует вызовы:
-
-```python
-stream.read(size)
-```
-
-и проверяет, что HMAC читает данные блоками:
+В:
 
 ```text
-8192 байт
+tests/test_hmac_cli.py
 ```
 
-а не загружает весь поток сразу.
+есть отдельный тест, который запускает настоящий процесс:
 
-Это отдельно подтверждает работу chunked processing.
+```text
+python -m cryptocore
+```
+
+через `subprocess`.
+
+Проверяется:
+
+```text
+успех проверки -> return code 0
+ошибка проверки -> return code != 0
+```
+
+То есть тестируется не только возврат `digest_main()`, но и фактический код завершения CLI-процесса.
 
 ---
 
-# Проверка большого файла HMAC
+# Проверка HMAC на реальном большом файле
 
-Добавлен:
+Скрипт:
 
 ```text
 scripts/hmac_large_file_test.py
 ```
 
-Скрипт создаёт бинарный файл размером:
+создаёт бинарный файл размером:
 
 ```text
 10 485 760 байт
 ```
 
-то есть:
+или:
 
 ```text
 10 MiB
 ```
 
-Затем HMAC вычисляется двумя способами:
+Настоящий `HMACSHA256` CryptoCore вычисляет MAC для всего файла.
 
-1. собственной реализацией CryptoCore;
-2. эталонной реализацией `hmac` + `hashlib.sha256`.
+Полученное значение сравнивается с:
 
-Полученные значения совпали:
+```python
+hmac.new(
+    key,
+    data,
+    hashlib.sha256
+)
+```
+
+Для проверенного тестового файла были получены одинаковые значения:
 
 ```text
 CryptoCore: d20bad94a922f94d99165e579e66f710efc20dc7429bf47cf0985e6303d69ea0
@@ -1257,13 +1539,61 @@ Reference:  d20bad94a922f94d99165e579e66f710efc20dc7429bf47cf0985e6303d69ea0
 Large HMAC test: PASSED
 ```
 
-Тестовый файл после проверки автоматически удаляется.
+---
+
+# Проверка constant-memory HMAC
+
+Дополнительно используется:
+
+```text
+scripts/hmac_huge_streaming_test.py
+```
+
+Тест передаёт через реальную функцию:
+
+```python
+hmac_stream()
+```
+
+виртуальный вход размером:
+
+```text
+21 474 836 603 байта
+```
+
+то есть более 20 GiB.
+
+При этом максимальный размер одного чтения:
+
+```text
+8192 байт
+```
+
+Проверенный результат:
+
+```text
+Logical input size: 21,474,836,603 bytes
+Processed: 21,474,836,603 bytes
+Maximum read: 8192 bytes
+
+Huge HMAC streaming test: PASSED
+```
+
+В этом тесте криптографическое ядро заменяется счётчиком, поскольку его задача — отдельно проверить свойство constant-memory streaming.
+
+Правильность самого HMAC независимо подтверждается:
+
+- RFC 4231;
+- тестами разных ключей;
+- пустым сообщением;
+- сравнением с Python `hmac`;
+- настоящим 10 MiB файлом.
 
 ---
 
 # HMAC interoperability с OpenSSL
 
-HMAC-SHA256 можно дополнительно сравнить с OpenSSL.
+Для дополнительной независимой проверки можно сравнить CryptoCore с OpenSSL.
 
 CryptoCore:
 
@@ -1277,74 +1607,87 @@ OpenSSL:
 openssl dgst -sha256 -mac HMAC -macopt hexkey:00112233445566778899aabbccddeeff plaintext.txt
 ```
 
-При одинаковом ключе и одинаковом входном файле полученные HMAC должны совпадать.
+Для одинакового ключа и одинаковых данных HMAC должны совпадать.
 
 ---
 
-# Автоматические тесты Sprint 5
+# AES-CMAC
 
-Основные новые файлы:
+AES-CMAC в Sprint 5 не реализован.
+
+В техническом задании он относится к:
 
 ```text
-tests/test_hmac_vectors.py
-tests/test_hmac_cli.py
+Bonus / Could
 ```
 
-Проверяются:
-
-- RFC 4231 Test Case 1;
-- RFC 4231 Test Case 2;
-- RFC 4231 Test Case 3;
-- RFC 4231 Test Case 4;
-- ключ 16 байт;
-- ключ 64 байта;
-- ключ 100 байт;
-- пустое сообщение;
-- incremental update;
-- повторный вызов `hexdigest()`;
-- ошибочный тип ключа;
-- ошибочный тип сообщения;
-- обязательный `--key`;
-- hexadecimal key;
-- HMAC файла;
-- `--output`;
-- успешный `--verify`;
-- изменение файла;
-- неправильный ключ;
-- chunked processing.
+и не является обязательной частью Sprint 5.
 
 ---
 
-# Запуск всех тестов
+# Автоматические тесты
 
-В `pyproject.toml` указано:
+Основные тестовые файлы:
+
+```text
+tests/test_cbc.py
+tests/test_cfb.py
+tests/test_cli.py
+tests/test_csprng.py
+tests/test_ctr.py
+tests/test_digest.py
+tests/test_digest_cli.py
+tests/test_ecb.py
+tests/test_hash_avalanche.py
+tests/test_hmac_cli.py
+tests/test_hmac_vectors.py
+tests/test_iv.py
+tests/test_large_hash_streaming.py
+tests/test_modes_integration.py
+tests/test_nist_data.py
+tests/test_nist_hash_vectors.py
+tests/test_ofb.py
+tests/test_padding.py
+tests/test_sha256.py
+tests/test_sha3_256.py
+```
+
+---
+
+# Настройка pytest
+
+В:
+
+```text
+pyproject.toml
+```
+
+указано:
 
 ```toml
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 ```
 
-Поэтому pytest запускает только автоматические тесты из:
-
-```text
-tests/
-```
-
-а служебные скрипты из:
-
-```text
-scripts/
-```
-
-не воспринимаются как pytest-тесты.
-
-Запуск:
+Поэтому команда:
 
 ```powershell
 pytest -v
 ```
 
-Полный набор тестов Sprint 1–5 проходит без `FAILED` и `ERROR`.
+запускает только автоматические тесты из:
+
+```text
+tests/
+```
+
+Служебные скрипты:
+
+```text
+scripts/
+```
+
+не запускаются автоматически через pytest.
 
 ---
 
@@ -1359,13 +1702,13 @@ cryptocore/
 |       |-- __main__.py
 |       |-- main.py
 |       |-- cli_parser.py
+|       |-- csprng.py
 |       |-- digest.py
 |       |-- digest_cli.py
 |       |-- file_io.py
-|       |-- padding.py
 |       |-- iv.py
-|       |-- csprng.py
 |       |-- nist_data.py
+|       |-- padding.py
 |       |
 |       |-- hash/
 |       |   |-- __init__.py
@@ -1378,45 +1721,99 @@ cryptocore/
 |       |
 |       `-- modes/
 |           |-- __init__.py
-|           |-- ecb.py
 |           |-- cbc.py
 |           |-- cfb.py
-|           |-- ofb.py
-|           `-- ctr.py
+|           |-- ctr.py
+|           |-- ecb.py
+|           `-- ofb.py
 |
 |-- tests/
-|   |-- test_padding.py
-|   |-- test_ecb.py
+|   |
+|   |-- vectors/
+|   |   `-- nist/
+|   |       |-- SHA256ShortMsg.rsp
+|   |       |-- SHA256LongMsg.rsp
+|   |       |-- SHA256Monte.rsp
+|   |       |-- SHA3_256ShortMsg.rsp
+|   |       |-- SHA3_256LongMsg.rsp
+|   |       `-- SHA3_256Monte.rsp
+|   |
 |   |-- test_cbc.py
 |   |-- test_cfb.py
-|   |-- test_ofb.py
-|   |-- test_ctr.py
-|   |-- test_iv.py
 |   |-- test_cli.py
-|   |-- test_modes_integration.py
 |   |-- test_csprng.py
-|   |-- test_nist_data.py
-|   |-- test_sha256.py
-|   |-- test_sha3_256.py
+|   |-- test_ctr.py
 |   |-- test_digest.py
 |   |-- test_digest_cli.py
+|   |-- test_ecb.py
 |   |-- test_hash_avalanche.py
+|   |-- test_hmac_cli.py
 |   |-- test_hmac_vectors.py
-|   `-- test_hmac_cli.py
+|   |-- test_iv.py
+|   |-- test_large_hash_streaming.py
+|   |-- test_modes_integration.py
+|   |-- test_nist_data.py
+|   |-- test_nist_hash_vectors.py
+|   |-- test_ofb.py
+|   |-- test_padding.py
+|   |-- test_sha256.py
+|   `-- test_sha3_256.py
 |
 |-- scripts/
-|   |-- round_trip_test.py
-|   |-- openssl_interop_test.py
 |   |-- generate_nist_data.py
 |   |-- hash_interop_test.py
 |   |-- hash_large_file_test.py
-|   `-- hmac_large_file_test.py
+|   |-- hmac_huge_streaming_test.py
+|   |-- hmac_large_file_test.py
+|   |-- nist_hash_monte_test.py
+|   |-- openssl_interop_test.py
+|   `-- round_trip_test.py
 |
+|-- .gitignore
 |-- plaintext.txt
 |-- pyproject.toml
-|-- requirements.txt
 |-- README.md
-`-- .gitignore
+`-- requirements.txt
+```
+
+---
+
+# Проверка проекта
+
+Обычный набор автоматических тестов:
+
+```powershell
+pytest -v
+```
+
+Проверка AES/OpenSSL:
+
+```powershell
+python .\scripts\openssl_interop_test.py
+```
+
+NIST Monte Carlo:
+
+```powershell
+python .\scripts\nist_hash_monte_test.py
+```
+
+Реальный файл >1 GiB для SHA:
+
+```powershell
+python .\scripts\hash_large_file_test.py
+```
+
+Реальный HMAC на 10 MiB:
+
+```powershell
+python .\scripts\hmac_large_file_test.py
+```
+
+Constant-memory HMAC на логическом объёме >20 GiB:
+
+```powershell
+python .\scripts\hmac_huge_streaming_test.py
 ```
 
 ---
@@ -1425,7 +1822,7 @@ cryptocore/
 
 Реализованы:
 
-- структура CryptoCore;
+- структура проекта;
 - CLI;
 - AES-128 ECB;
 - PKCS#7;
@@ -1443,11 +1840,11 @@ cryptocore/
 - AES-128 CFB-128;
 - AES-128 OFB;
 - AES-128 CTR;
-- собственная логика режимов;
+- самостоятельная логика режимов;
 - генерация IV;
-- параметр `--iv`;
+- `--iv`;
 - формат `<IV><ciphertext>`;
-- двусторонняя совместимость с OpenSSL.
+- двусторонняя interoperability с OpenSSL.
 
 ---
 
@@ -1460,9 +1857,9 @@ cryptocore/
 - автоматическая генерация AES-ключа;
 - генерация IV через CSPRNG;
 - предупреждение о потенциально слабых ключах;
-- автоматические тесты CSPRNG;
-- подготовка данных NIST;
-- полный NIST STS.
+- тесты CSPRNG;
+- подготовка NIST data;
+- NIST STS.
 
 ---
 
@@ -1473,16 +1870,23 @@ cryptocore/
 - SHA-256 с нуля;
 - SHA3-256 с нуля;
 - Keccak-f[1600];
-- команда `dgst`;
+- `dgst`;
 - `--algorithm`;
 - `--input`;
 - `--output`;
 - binary file I/O;
+- lowercase hexadecimal output;
 - chunked processing;
 - Known-Answer Tests;
-- empty-message tests;
+- empty input tests;
+- официальные NIST Short Message vectors;
+- официальные NIST Long Message vectors;
+- NIST Monte Carlo;
 - interoperability;
-- avalanche effect.
+- avalanche effect;
+- проверка реального файла >1 GiB;
+- отдельная автоматическая проверка streaming >1 GiB;
+- документация security properties.
 
 ---
 
@@ -1491,29 +1895,31 @@ cryptocore/
 Реализованы:
 
 - HMAC-SHA256 с нуля;
-- использование собственной SHA-256 из Sprint 4;
-- обработка HMAC-ключей произвольной длины;
-- обработка ключей больше 64 байт;
+- использование собственной SHA-256;
+- RFC 2104 construction;
+- обработка ключей произвольной длины;
+- хеширование ключей больше 64 байт;
 - zero padding коротких ключей;
 - `--hmac`;
-- `--key`;
+- обязательный hexadecimal `--key`;
 - `--verify`;
-- `--output` для HMAC;
+- `--output`;
 - формат `HMAC_VALUE INPUT_FILE_PATH`;
-- потоковая обработка;
-- безопасное сравнение HMAC;
+- безопасное сравнение через `compare_digest`;
+- binary file I/O;
+- chunked processing;
 - RFC 4231 Test Cases 1–4;
-- проверка короткого ключа;
-- проверка 64-байтового ключа;
-- проверка 100-байтового ключа;
-- проверка пустого сообщения;
-- tamper detection для файла;
-- tamper detection для ключа;
-- проверка chunked processing;
-- проверка большого файла;
-- сохранение работоспособности предыдущих Sprint.
+- ключи 16, 64 и 100 байт;
+- empty input;
+- verify generated HMAC;
+- tamper detection файла;
+- tamper detection ключа;
+- реальные CLI exit codes;
+- HMAC настоящего 10 MiB файла;
+- constant-memory streaming для логического входа более 20 GiB;
+- документация конструкции и security properties.
 
-AES-CMAC в Sprint 5 не реализован, поскольку относится к дополнительному Bonus/Could требованию.
+AES-CMAC не реализован, поскольку является дополнительным Bonus/Could требованием.
 
 ---
 

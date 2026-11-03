@@ -271,3 +271,26 @@ def test_hmac_stream_uses_chunks():
         size == CHUNK_SIZE
         for size in stream.read_sizes
     )
+def test_long_key_is_hashed_before_hmac():
+    key = bytes(
+        index % 256
+        for index in range(100)
+    )
+
+    data = (
+        b"CryptoCore long HMAC key test"
+    )
+
+    result = HMACSHA256(
+        key
+    ).compute(
+        data
+    )
+
+    expected = hmac.new(
+        key,
+        data,
+        hashlib.sha256,
+    ).hexdigest()
+
+    assert result == expected
