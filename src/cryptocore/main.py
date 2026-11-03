@@ -1,5 +1,6 @@
 import sys
 
+from .digest import digest_main
 from .cli_parser import get_arguments, parse_key
 from .csprng import generate_random_bytes
 from .file_io import read_file, write_file
@@ -41,15 +42,16 @@ DECRYPT_FUNCTIONS = {
 
 def get_default_output_name(
     input_file: str,
-    encrypt: bool
+    encrypt: bool,
 ) -> str:
     if encrypt:
         return input_file + ".enc"
 
     return input_file + ".dec"
 
+
 def get_weak_key_reason(
-    key: bytes
+    key: bytes,
 ) -> str | None:
     if len(set(key)) == 1:
         return (
@@ -79,16 +81,19 @@ def warn_if_weak_key(key: bytes) -> None:
         print(
             "[WARNING] Обнаружен потенциально "
             f"слабый AES-ключ: {reason}.",
-            file=sys.stderr
+            file=sys.stderr,
         )
 
+
 def get_encryption_key(
-    key_string: str | None
+    key_string: str | None,
 ) -> tuple[bytes, bool]:
     if key_string is not None:
         return parse_key(key_string), False
 
-    key = generate_random_bytes(KEY_SIZE)
+    key = generate_random_bytes(
+        KEY_SIZE
+    )
 
     return key, True
 
@@ -96,29 +101,31 @@ def get_encryption_key(
 def encrypt_data(
     data: bytes,
     key: bytes,
-    mode: str
+    mode: str,
 ) -> tuple[bytes, bytes | None]:
     if mode == "ecb":
         encrypted = encrypt_ecb(
             data=data,
-            key=key
+            key=key,
         )
 
         return encrypted, None
 
     iv = generate_iv()
 
-    encrypt_function = ENCRYPT_FUNCTIONS[mode]
+    encrypt_function = (
+        ENCRYPT_FUNCTIONS[mode]
+    )
 
     ciphertext = encrypt_function(
         data=data,
         key=key,
-        iv=iv
+        iv=iv,
     )
 
     result = prepend_iv(
         iv=iv,
-        ciphertext=ciphertext
+        ciphertext=ciphertext,
     )
 
     return result, iv
@@ -128,39 +135,59 @@ def decrypt_data(
     data: bytes,
     key: bytes,
     mode: str,
-    iv_string: str | None = None
+    iv_string: str | None = None,
 ) -> bytes:
     if mode == "ecb":
         return decrypt_ecb(
             data=data,
-            key=key
+            key=key,
         )
 
     if iv_string is not None:
-        iv = parse_iv(iv_string)
+        iv = parse_iv(
+            iv_string
+        )
+
         ciphertext = data
 
     else:
-        iv, ciphertext = split_iv(data)
+        iv, ciphertext = split_iv(
+            data
+        )
 
-    decrypt_function = DECRYPT_FUNCTIONS[mode]
+    decrypt_function = (
+        DECRYPT_FUNCTIONS[mode]
+    )
 
     return decrypt_function(
         data=ciphertext,
         key=key,
-        iv=iv
+        iv=iv,
     )
 
 
 def main() -> int:
+    # Sprint 4:
+    # отдельная команда для хеширования.
+    if (
+        len(sys.argv) > 1
+        and sys.argv[1] == "dgst"
+    ):
+        return digest_main(
+            sys.argv[2:]
+        )
+
+    # Старый CLI Sprint 1-3.
     try:
         args = get_arguments()
 
         generated_key = False
 
         if args.encrypt:
-            key, generated_key = get_encryption_key(
-                args.key
+            key, generated_key = (
+                get_encryption_key(
+                    args.key
+                )
             )
 
             if generated_key:
@@ -170,11 +197,18 @@ def main() -> int:
                 )
 
             else:
-                warn_if_weak_key(key)
+                warn_if_weak_key(
+                    key
+                )
 
         else:
-            key = parse_key(args.key)
-            warn_if_weak_key(key)
+            key = parse_key(
+                args.key
+            )
+
+            warn_if_weak_key(
+                key
+            )
 
         input_data = read_file(
             args.input_file
@@ -183,48 +217,61 @@ def main() -> int:
         generated_iv = None
 
         if args.encrypt:
-            result, generated_iv = encrypt_data(
-                data=input_data,
-                key=key,
-                mode=args.mode
+            result, generated_iv = (
+                encrypt_data(
+                    data=input_data,
+                    key=key,
+                    mode=args.mode,
+                )
             )
 
-            operation_name = "Шифрование"
+            operation_name = (
+                "Шифрование"
+            )
 
         else:
             result = decrypt_data(
                 data=input_data,
                 key=key,
                 mode=args.mode,
-                iv_string=args.iv
+                iv_string=args.iv,
             )
 
-            operation_name = "Расшифрование"
+            operation_name = (
+                "Расшифрование"
+            )
 
-        output_file = args.output_file
+        output_file = (
+            args.output_file
+        )
 
         if output_file is None:
-            output_file = get_default_output_name(
-                input_file=args.input_file,
-                encrypt=args.encrypt
+            output_file = (
+                get_default_output_name(
+                    input_file=args.input_file,
+                    encrypt=args.encrypt,
+                )
             )
 
         write_file(
             file_path=output_file,
-            data=result
+            data=result,
         )
 
         print(
-            f"{operation_name} успешно завершено."
+            f"{operation_name} "
+            "успешно завершено."
         )
 
         print(
-            f"Результат сохранён в: {output_file}"
+            "Результат сохранён в: "
+            f"{output_file}"
         )
 
         if generated_iv is not None:
             print(
-                f"IV: {generated_iv.hex().upper()}"
+                "IV: "
+                f"{generated_iv.hex().upper()}"
             )
 
         return 0
@@ -236,15 +283,15 @@ def main() -> int:
         PermissionError,
         IsADirectoryError,
         OSError,
-        KeyError
+        KeyError,
     ) as error:
         print(
             f"Ошибка: {error}",
-            file=sys.stderr
+            file=sys.stderr,
         )
 
         return 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

@@ -1,26 +1,30 @@
 # CryptoCore
 
-CryptoCore — консольное приложение на Python для шифрования и расшифрования файлов с использованием алгоритма AES-128.
+CryptoCore — консольное приложение на Python для шифрования, расшифрования и вычисления криптографических хешей файлов.
 
 Проект разработан в рамках учебной работы по дисциплине, связанной с методами и средствами криптографической защиты информации.
 
-В проекте реализованы требования Sprint 1, Sprint 2 и Sprint 3.
+В проекте реализованы требования Sprint 1, Sprint 2, Sprint 3 и Sprint 4.
 
 ---
 
-# Поддерживаемые режимы
+# Возможности проекта
 
-CryptoCore поддерживает следующие режимы AES-128:
+CryptoCore поддерживает:
 
-- ECB;
-- CBC;
-- CFB-128;
-- OFB;
-- CTR.
-
-Для реализации базового AES-примитива используется библиотека PyCryptodome.
-
-В режимах CBC, CFB, OFB и CTR логика режима реализована в проекте поверх AES-128 ECB.
+- AES-128 ECB;
+- AES-128 CBC;
+- AES-128 CFB-128;
+- AES-128 OFB;
+- AES-128 CTR;
+- SHA-256;
+- SHA3-256;
+- автоматическую генерацию AES-ключей;
+- генерацию IV;
+- CSPRNG;
+- потоковое хеширование файлов;
+- проверку совместимости с OpenSSL и системными утилитами;
+- статистическую проверку CSPRNG через NIST STS.
 
 ---
 
@@ -51,26 +55,26 @@ cd cryptocore
 python -m venv .venv
 ```
 
-Активировать виртуальное окружение в Windows PowerShell:
+Активировать виртуальное окружение:
 
 ```powershell
 .venv\Scripts\Activate.ps1
 ```
 
-Установить проект и зависимости:
+Установить зависимости:
 
 ```powershell
 pip install -e .
 pip install -r requirements.txt
 ```
 
-После установки должна быть доступна команда:
+Проверить запуск:
 
 ```powershell
 cryptocore --help
 ```
 
-Программу также можно запускать как Python-модуль:
+или:
 
 ```powershell
 python -m cryptocore --help
@@ -78,7 +82,19 @@ python -m cryptocore --help
 
 ---
 
-# Общий формат команды
+# Шифрование AES-128
+
+Поддерживаются режимы:
+
+```text
+ECB
+CBC
+CFB
+OFB
+CTR
+```
+
+Общий формат команды:
 
 ```text
 cryptocore
@@ -91,9 +107,17 @@ cryptocore
     [--output <output-file>]
 ```
 
-Для AES-128 используется ключ длиной 16 байт.
+Для AES-128 используется ключ длиной:
 
-В шестнадцатеричном представлении это 32 символа.
+```text
+16 байт
+```
+
+или:
+
+```text
+32 hexadecimal-символа
+```
 
 Пример:
 
@@ -101,15 +125,19 @@ cryptocore
 000102030405060708090a0b0c0d0e0f
 ```
 
-Начиная со Sprint 3 параметр `--key` является необязательным при шифровании.
-
-При расшифровании параметр `--key` остаётся обязательным.
-
 ---
 
 # Автоматическая генерация AES-ключа
 
-Если при шифровании параметр `--key` не указан, CryptoCore автоматически создаёт криптографически стойкий случайный ключ AES-128 длиной 16 байт.
+При шифровании параметр:
+
+```text
+--key
+```
+
+является необязательным.
+
+Если ключ не передан, CryptoCore автоматически создаёт криптографически стойкий случайный ключ AES-128 длиной 16 байт.
 
 Пример:
 
@@ -132,36 +160,23 @@ IV: ...
 - предназначен для AES-128;
 - выводится в stdout;
 - выводится в hexadecimal-формате;
-- выводится сразу после генерации;
-- не записывается в зашифрованный файл.
+- не записывается в ciphertext.
 
-Пользователь должен сохранить сгенерированный ключ самостоятельно.
+Пользователь должен сохранить ключ самостоятельно.
 
-Для последующего расшифрования необходимо передать его через параметр `--key`.
-
-Пример:
-
-```powershell
-cryptocore --algorithm aes --mode ctr --decrypt --key 1a2b3c4d5e6f7890fedcba9876543210 --input ciphertext.bin --output decrypted.txt
-```
+Для расшифрования `--key` является обязательным.
 
 ---
 
 # Пользовательский AES-ключ
 
-Если пользователь явно указывает параметр `--key`, CryptoCore использует переданный ключ.
-
-Пример:
+Пользователь может передать собственный ключ:
 
 ```powershell
 cryptocore --algorithm aes --mode cbc --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output ciphertext.bin
 ```
 
-Ключ должен:
-
-- быть представлен hexadecimal-строкой;
-- содержать ровно 16 байт;
-- состоять из 32 hexadecimal-символов.
+Ключ должен содержать ровно 16 байт.
 
 ---
 
@@ -171,10 +186,10 @@ CryptoCore выполняет базовую проверку пользоват
 
 Потенциально слабыми считаются:
 
-- ключи из одного повторяющегося байта;
+- полностью повторяющиеся байты;
 - полностью нулевой ключ;
-- последовательность байтов от `00` до `0F`;
-- обратная последовательность байтов от `0F` до `00`.
+- последовательность `00–0F`;
+- обратная последовательность `0F–00`.
 
 Пример:
 
@@ -182,12 +197,10 @@ CryptoCore выполняет базовую проверку пользоват
 00000000000000000000000000000000
 ```
 
-При обнаружении такого значения CryptoCore выводит предупреждение в `stderr`.
-
-Например:
+В этом случае выводится предупреждение:
 
 ```text
-[WARNING] Обнаружен потенциально слабый AES-ключ: ключ состоит из одного повторяющегося байта.
+[WARNING] Обнаружен потенциально слабый AES-ключ: ...
 ```
 
 Операция при этом не прерывается.
@@ -196,7 +209,7 @@ CryptoCore выполняет базовую проверку пользоват
 
 # CSPRNG
 
-Начиная со Sprint 3 в проекте используется отдельный модуль криптографически стойкой генерации случайных данных:
+В проекте реализован отдельный модуль:
 
 ```text
 src/cryptocore/csprng.py
@@ -208,36 +221,25 @@ src/cryptocore/csprng.py
 generate_random_bytes(num_bytes: int) -> bytes
 ```
 
-Для генерации используется системный источник случайности:
+Для генерации случайных данных используется:
 
 ```python
 os.urandom()
 ```
 
-Стандартный псевдослучайный генератор:
+Стандартный модуль:
 
 ```python
 random
 ```
 
-для формирования криптографических ключей и IV не используется.
+для криптографических ключей и IV не используется.
 
 CSPRNG применяется для:
 
-- автоматической генерации AES-128 ключей;
-- генерации IV для CBC;
-- генерации IV для CFB;
-- генерации IV для OFB;
-- генерации IV для CTR;
-- подготовки случайных данных для NIST STS.
-
-Функция проверяет корректность запрашиваемого количества байт.
-
-При ошибке системного источника случайности возникает понятная ошибка:
-
-```text
-RuntimeError
-```
+- AES-128 ключей;
+- IV;
+- подготовки данных NIST STS.
 
 ---
 
@@ -247,21 +249,15 @@ ECB обрабатывает каждый блок независимо.
 
 IV не используется.
 
-Для ECB применяется PKCS#7 padding.
+Применяется PKCS#7 padding.
 
-## Шифрование с пользовательским ключом
+Шифрование:
 
 ```powershell
 cryptocore --algorithm aes --mode ecb --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_ecb.bin
 ```
 
-## Шифрование с автоматически созданным ключом
-
-```powershell
-cryptocore --algorithm aes --mode ecb --encrypt --input plaintext.txt --output encrypted_ecb.bin
-```
-
-## Расшифрование
+Расшифрование:
 
 ```powershell
 cryptocore --algorithm aes --mode ecb --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_ecb.bin --output decrypted_ecb.txt
@@ -271,41 +267,31 @@ cryptocore --algorithm aes --mode ecb --decrypt --key 000102030405060708090a0b0c
 
 # AES-128 CBC
 
-CBC использует IV длиной 16 байт.
+CBC использует 16-байтовый IV.
 
-При шифровании IV создаётся автоматически через общий CSPRNG.
+Для CBC применяется PKCS#7 padding.
 
-Для CBC используется PKCS#7 padding.
-
-Каждый plaintext-блок объединяется операцией XOR с предыдущим ciphertext-блоком.
+Каждый plaintext-блок объединяется через XOR с предыдущим ciphertext-блоком.
 
 Для первого блока используется IV.
 
-## Шифрование
+Шифрование:
 
 ```powershell
 cryptocore --algorithm aes --mode cbc --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_cbc.bin
 ```
 
-Либо с автоматически созданным ключом:
-
-```powershell
-cryptocore --algorithm aes --mode cbc --encrypt --input plaintext.txt --output encrypted_cbc.bin
-```
-
-Формат выходного файла:
-
-```text
-<16-byte IV><ciphertext>
-```
-
-## Расшифрование
+Расшифрование:
 
 ```powershell
 cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_cbc.bin --output decrypted_cbc.txt
 ```
 
-Если `--iv` не указан, CryptoCore автоматически считывает первые 16 байт входного файла как IV.
+Формат файла:
+
+```text
+<16-byte IV><ciphertext>
+```
 
 ---
 
@@ -313,21 +299,15 @@ cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c
 
 CFB реализован с размером сегмента 128 бит.
 
-AES используется для шифрования IV или предыдущего ciphertext-блока.
-
-Полученный результат используется как keystream и объединяется с данными через XOR.
-
 Padding не используется.
 
-Размер ciphertext совпадает с размером исходных данных.
-
-## Шифрование
+Шифрование:
 
 ```powershell
 cryptocore --algorithm aes --mode cfb --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_cfb.bin
 ```
 
-## Расшифрование
+Расшифрование:
 
 ```powershell
 cryptocore --algorithm aes --mode cfb --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_cfb.bin --output decrypted_cfb.txt
@@ -339,21 +319,15 @@ cryptocore --algorithm aes --mode cfb --decrypt --key 000102030405060708090a0b0c
 
 OFB работает как потоковый режим.
 
-AES последовательно шифрует предыдущий выходной блок.
-
-Первым входным значением является IV.
-
-Полученный поток объединяется с исходными данными через XOR.
-
 Padding не используется.
 
-## Шифрование
+Шифрование:
 
 ```powershell
 cryptocore --algorithm aes --mode ofb --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_ofb.bin
 ```
 
-## Расшифрование
+Расшифрование:
 
 ```powershell
 cryptocore --algorithm aes --mode ofb --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_ofb.bin --output decrypted_ofb.txt
@@ -367,20 +341,20 @@ cryptocore --algorithm aes --mode ofb --decrypt --key 000102030405060708090a0b0c
 
 Для каждого блока:
 
-1. текущее значение счётчика шифруется AES;
-2. полученный результат используется как keystream;
+1. счётчик шифруется AES;
+2. результат используется как keystream;
 3. keystream объединяется с данными через XOR;
-4. счётчик увеличивается на единицу.
+4. счётчик увеличивается.
 
 Padding не используется.
 
-## Шифрование
+Шифрование:
 
 ```powershell
 cryptocore --algorithm aes --mode ctr --encrypt --key 000102030405060708090a0b0c0d0e0f --input plaintext.txt --output encrypted_ctr.bin
 ```
 
-## Расшифрование
+Расшифрование:
 
 ```powershell
 cryptocore --algorithm aes --mode ctr --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_ctr.bin --output decrypted_ctr.txt
@@ -392,81 +366,34 @@ cryptocore --algorithm aes --mode ctr --decrypt --key 000102030405060708090a0b0c
 
 Для режимов:
 
-- CBC;
-- CFB;
-- OFB;
-- CTR
+```text
+CBC
+CFB
+OFB
+CTR
+```
 
 используется IV длиной 16 байт.
 
 ECB IV не использует.
 
-Начиная со Sprint 3 генерация IV выполняется через общий CSPRNG:
+IV создаётся автоматически через общий CSPRNG.
 
-```python
-generate_random_bytes(16)
-```
-
-который внутри использует:
-
-```python
-os.urandom()
-```
-
-При шифровании пользователь не должен передавать `--iv`.
-
-IV создаётся автоматически.
-
-Формат зашифрованного файла:
+Формат файла:
 
 ```text
 <16-byte IV><ciphertext>
 ```
 
-Первые 16 байт содержат IV.
-
-Оставшаяся часть файла содержит ciphertext.
-
 AES-ключ в файл не записывается.
 
----
+При расшифровании файла CryptoCore может автоматически извлечь IV из первых 16 байт.
 
-# Расшифрование без --iv
-
-Если файл был создан CryptoCore, параметр `--iv` указывать не требуется.
-
-Пример:
-
-```powershell
-cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --input encrypted_cbc.bin --output restored.txt
-```
-
-CryptoCore автоматически:
-
-1. читает первые 16 байт;
-2. использует их как IV;
-3. оставшуюся часть файла рассматривает как ciphertext;
-4. выполняет расшифрование.
-
----
-
-# Явное указание IV
-
-Параметр `--iv` используется при расшифровании ciphertext, созданного внешней программой, например OpenSSL.
-
-Пример:
+Также поддерживается явное указание IV:
 
 ```powershell
 cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --iv AABBCCDDEEFF00112233445566778899 --input openssl_cipher.bin --output restored.txt
 ```
-
-В этом случае весь входной файл считается ciphertext.
-
-IV берётся из параметра `--iv`.
-
-Передавать `--iv` при шифровании запрещено.
-
-Для ECB использование `--iv` также запрещено.
 
 ---
 
@@ -491,29 +418,27 @@ CTR
 
 работают без padding.
 
-CFB, OFB и CTR корректно обрабатывают последний неполный блок без изменения размера исходных данных.
-
 ---
 
-# Работа с бинарными файлами
+# Работа с файлами
 
 CryptoCore работает с файлами в бинарном режиме.
 
-Чтение выполняется через:
+Чтение:
 
 ```python
 rb
 ```
 
-Запись выполняется через:
+Запись:
 
 ```python
 wb
 ```
 
-Поэтому программа может обрабатывать:
+Поэтому программа поддерживает:
 
-- текстовые файлы;
+- текст;
 - изображения;
 - архивы;
 - документы;
@@ -521,271 +446,41 @@ wb
 
 ---
 
-# Автоматические тесты
+# OpenSSL interoperability для AES
 
-Для запуска всех тестов:
-
-```powershell
-pytest
-```
-
-Для подробного вывода:
-
-```powershell
-pytest -v
-```
-
-Автоматическими тестами проверяются:
-
-- PKCS#7 padding;
-- AES-128 ECB;
-- AES-128 CBC;
-- AES-128 CFB-128;
-- AES-128 OFB;
-- AES-128 CTR;
-- CLI;
-- проверка AES-128 ключей;
-- необязательный ключ при шифровании;
-- обязательный ключ при расшифровании;
-- автоматическая генерация ключей;
-- CSPRNG;
-- генерация IV;
-- использование общего CSPRNG для IV;
-- формат `IV + ciphertext`;
-- round-trip;
-- работа с неполными блоками;
-- слабые пользовательские ключи;
-- уникальность случайных значений;
-- базовое распределение случайных битов;
-- подготовка файла для NIST STS.
-
----
-
-# Тест CSPRNG
-
-Основные тесты находятся в:
-
-```text
-tests/test_csprng.py
-```
-
-Проверяются:
-
-- тип возвращаемого значения;
-- требуемая длина;
-- генерация различных значений;
-- неправильный нулевой размер;
-- отрицательный размер;
-- нецелочисленный размер;
-- ошибка системного источника `os.urandom()`;
-- уникальность случайных значений;
-- базовое распределение единичных битов.
-
----
-
-# Тест 1000 случайных ключей
-
-Для проверки уникальности функция:
-
-```python
-generate_random_bytes(16)
-```
-
-вызывается 1000 раз.
-
-Полученные значения помещаются в множество.
-
-Проверяется:
-
-```text
-Количество сгенерированных значений: 1000
-Количество уникальных значений: 1000
-```
-
-Таким образом проверяется отсутствие повторов среди 1000 случайных 128-битных значений.
-
----
-
-# Базовая статистическая проверка
-
-В проекте выполняется базовая проверка доли единичных битов.
-
-Для 1000 случайных 16-байтовых значений подсчитывается:
-
-```text
-количество единичных битов / общее количество битов
-```
-
-Допустимый диапазон теста:
-
-```text
-0.45 <= доля единичных битов <= 0.55
-```
-
-То есть доля единиц должна находиться примерно около 50%.
-
-Данная проверка не заменяет полноценное статистическое тестирование NIST STS.
-
----
-
-# Round-trip
-
-Принцип проверки:
-
-```text
-original
-   |
-   v
-encrypt
-   |
-   v
-ciphertext
-   |
-   v
-decrypt
-   |
-   v
-restored
-```
-
-Файлы `original` и `restored` должны полностью совпадать побайтово.
-
-Дополнительный сценарий находится в:
-
-```text
-scripts/round_trip_test.py
-```
-
-Запуск:
-
-```powershell
-python scripts/round_trip_test.py
-```
-
----
-
-# Round-trip с автоматически созданным ключом
-
-Sprint 3 позволяет выполнить шифрование без параметра `--key`.
-
-Пример:
-
-```powershell
-cryptocore --algorithm aes --mode ctr --encrypt --input plaintext.txt --output sprint3_test.bin
-```
-
-Программа выводит:
-
-```text
-[INFO] Generated random key: ...
-```
-
-Полученный ключ необходимо использовать для расшифрования:
-
-```powershell
-cryptocore --algorithm aes --mode ctr --decrypt --key <GENERATED_KEY> --input sprint3_test.bin --output restored.txt
-```
-
-Файл:
-
-```text
-restored.txt
-```
-
-должен побайтово совпадать с исходным:
-
-```text
-plaintext.txt
-```
-
----
-
-# Совместимость с OpenSSL
-
-Для проверки совместимости CryptoCore с OpenSSL используется:
+Проверка выполняется скриптом:
 
 ```text
 scripts/openssl_interop_test.py
 ```
 
-Проверка охватывает:
-
-- ECB;
-- CBC;
-- CFB-128;
-- OFB;
-- CTR.
-
----
-
-# Установка и запуск OpenSSL
-
-Проверить наличие OpenSSL:
-
-```powershell
-openssl version
-```
-
-Если OpenSSL установлен по пути:
-
-```text
-C:\Program Files\OpenSSL-Win64\bin
-```
-
-его можно временно добавить в PATH:
-
-```powershell
-$env:Path += ";C:\Program Files\OpenSSL-Win64\bin"
-```
-
-После этого:
-
-```powershell
-openssl version
-```
-
----
-
-# Общая проверка OpenSSL
-
 Запуск:
 
 ```powershell
-python scripts/openssl_interop_test.py
+$env:Path += ";C:\Program Files\OpenSSL-Win64\bin"
+python .\scripts\openssl_interop_test.py
 ```
 
-Для каждого режима выполняются проверки в обоих направлениях:
+Проверяются:
+
+```text
+ECB
+CBC
+CFB
+OFB
+CTR
+```
+
+Для каждого режима выполняются проверки:
 
 ```text
 CryptoCore -> OpenSSL
 OpenSSL -> CryptoCore
 ```
 
-Для CBC, CFB, OFB и CTR используется IV.
+Дополнительно для ECB выполняется побайтовое сравнение ciphertext.
 
-ECB IV не использует.
-
-Отдельно выполняется побайтовое сравнение ciphertext AES-128 ECB.
-
-Количество основных проверок:
-
-```text
-5 режимов × 2 направления = 10
-```
-
-Дополнительная проверка:
-
-```text
-CryptoCore ECB ciphertext == OpenSSL ECB ciphertext
-```
-
-Всего:
-
-```text
-11 проверок
-```
-
-При успешном прохождении ожидается:
+Итог:
 
 ```text
 Result: 11/11 checks passed
@@ -794,149 +489,36 @@ OpenSSL interoperability: PASSED
 
 ---
 
-# TEST-3 Sprint 1 — OpenSSL ECB
+# NIST STS
 
-Для ECB выполняется отдельное сравнение ciphertext.
-
-Одни и те же данные шифруются:
-
-1. средствами CryptoCore;
-2. средствами OpenSSL.
-
-Пример команды OpenSSL:
-
-```powershell
-openssl enc -aes-128-ecb -e -K 000102030405060708090a0b0c0d0e0f -nosalt -in plaintext.txt -out openssl_ecb.bin
-```
-
-ECB не использует IV.
-
-Параметр:
-
-```text
--nopad
-```
-
-не применяется, поскольку CryptoCore использует PKCS#7 padding.
-
-Результаты CryptoCore и OpenSSL сравниваются побайтово.
-
----
-
-# CryptoCore -> OpenSSL
-
-Для CBC, CFB, OFB и CTR CryptoCore формирует:
-
-```text
-<16-byte IV><ciphertext>
-```
-
-Перед передачей данных OpenSSL необходимо:
-
-1. извлечь первые 16 байт;
-2. использовать их как IV;
-3. передать OpenSSL оставшийся ciphertext.
-
-Пример для CBC:
-
-```powershell
-openssl enc -aes-128-cbc -d -K 000102030405060708090a0b0c0d0e0f -iv AABBCCDDEEFF00112233445566778899 -in ciphertext.bin -out restored.txt
-```
-
----
-
-# OpenSSL -> CryptoCore
-
-При формировании внешнего ciphertext OpenSSL IV передаётся CryptoCore явно.
-
-Пример:
-
-```powershell
-cryptocore --algorithm aes --mode cbc --decrypt --key 000102030405060708090a0b0c0d0e0f --iv AABBCCDDEEFF00112233445566778899 --input openssl_cipher.bin --output restored.txt
-```
-
----
-
-# Подготовка данных для NIST STS
-
-Для подготовки случайных данных используется:
-
-```text
-scripts/generate_nist_data.py
-```
-
-Основная логика находится в:
-
-```text
-src/cryptocore/nist_data.py
-```
-
-Запуск:
-
-```powershell
-python scripts/generate_nist_data.py
-```
-
-По умолчанию создаётся:
-
-```text
-nist_test_data.bin
-```
-
-Размер:
-
-```text
-10 000 000 байт
-```
-
-Все данные формируются через общий CSPRNG проекта:
-
-```python
-generate_random_bytes(...)
-```
-
-Файл:
-
-```text
-nist_test_data.bin
-```
-
-добавлен в `.gitignore` и не хранится в Git-репозитории.
-
----
-
-# NIST Statistical Test Suite
-
-Для полноценной статистической проверки выхода CSPRNG использовалась:
+Для статистической проверки CSPRNG использовалась:
 
 ```text
 NIST Statistical Test Suite 2.1.2
 ```
 
-Тестирование выполнялось в Ubuntu через WSL.
-
-Был использован файл:
+Подготовка данных выполняется через:
 
 ```text
-data/nist_test_data.bin
+scripts/generate_nist_data.py
 ```
 
-сгенерированный CryptoCore через CSPRNG на основе:
+Создаётся:
 
-```python
-os.urandom()
+```text
+nist_test_data.bin
 ```
 
-Размер исходного файла:
+размером:
 
 ```text
 10 000 000 байт
 ```
 
-то есть:
+Данные формируются через:
 
-```text
-80 000 000 бит
+```python
+generate_random_bytes(...)
 ```
 
 ---
@@ -955,19 +537,17 @@ os.urandom()
 80
 ```
 
-Объём:
+Общий объём:
 
 ```text
-80 × 1 000 000 = 80 000 000 бит
+80 000 000 бит
 ```
 
-Формат входного файла:
+Формат:
 
 ```text
 Binary
 ```
-
-Были выбраны все 15 статистических тестов.
 
 Команда запуска:
 
@@ -975,11 +555,13 @@ Binary
 ./assess 1000000
 ```
 
+Были выбраны все 15 статистических тестов.
+
 ---
 
 # Выполненные тесты NIST STS
 
-Выполнены все группы статистических тестов:
+Выполнены:
 
 1. Frequency;
 2. Block Frequency;
@@ -997,36 +579,11 @@ Binary
 14. Serial;
 15. Linear Complexity.
 
----
-
-# Результаты NIST STS
-
-Итоговый отчёт сформирован в:
-
-```text
-experiments/AlgorithmTesting/finalAnalysisReport.txt
-```
-
-Для выборки из 80 последовательностей NIST STS указал минимально допустимую пропорцию:
-
-```text
-76/80
-```
-
-Для Random Excursions и Random Excursions Variant из-за количества подходящих последовательностей использовалось 53 последовательности.
-
-Минимально допустимая пропорция:
-
-```text
-50/53
-```
-
 Основные результаты:
 
 ```text
 Frequency               80/80
 BlockFrequency          79/80
-CumulativeSums          80/80
 CumulativeSums          80/80
 Runs                    79/80
 LongestRun              79/80
@@ -1035,135 +592,505 @@ FFT                     80/80
 OverlappingTemplate     78/80
 Universal               79/80
 ApproximateEntropy      79/80
-Serial                  80/80
-Serial                  79/80
+Serial                  80/80 и 79/80
 LinearComplexity        80/80
 ```
 
-Для многочисленных под-тестов:
-
-```text
-NonOverlappingTemplate
-```
-
-пропорции находились в диапазоне:
-
-```text
-77/80 – 80/80
-```
-
-что не ниже минимальной границы:
-
-```text
-76/80
-```
-
----
-
-# Random Excursions
-
-Для Random Excursions было доступно:
-
-```text
-53
-```
-
-последовательности.
-
-Полученные пропорции находились в диапазоне:
+Для Random Excursions и Random Excursions Variant результаты находились в диапазоне:
 
 ```text
 51/53 – 53/53
 ```
 
-Минимально допустимое значение:
-
-```text
-50/53
-```
-
-Таким образом, требование по пропорции выполнено.
-
----
-
-# Random Excursions Variant
-
-Для Random Excursions Variant также использовались:
-
-```text
-53
-```
-
-последовательности.
-
-Полученные значения находились в диапазоне:
-
-```text
-51/53 – 53/53
-```
-
-Минимально допустимое значение:
-
-```text
-50/53
-```
-
-Требование по пропорции также выполнено.
-
----
-
-# P-VALUE в NIST STS
-
-Подавляющее большинство полученных значений `P-VALUE` находится выше:
-
-```text
-0.01
-```
-
-В одном из под-тестов `NonOverlappingTemplate` получено:
-
-```text
-P-VALUE = 0.004715
-PROPORTION = 79/80
-```
-
-При этом пропорция прошедших последовательностей значительно выше требуемой:
-
-```text
-76/80
-```
-
-Значение uniformity P-VALUE также остаётся выше критической границы:
-
-```text
-0.0001
-```
-
-Единичное такое значение среди большого количества под-тестов не свидетельствует о систематической проблеме генератора.
-
----
-
-# Итог NIST STS
-
-По результатам выполненного статистического тестирования:
+Итог:
 
 ```text
 NIST STS: PASSED
 ```
 
-Все 15 групп статистических тестов были выполнены.
+---
 
-Пропорции успешно прошедших последовательностей соответствуют минимальным значениям, указанным итоговым отчётом NIST STS.
+# Sprint 4 — криптографические хеш-функции
 
-Большинство полученных P-VALUE значительно превышают уровень:
+В Sprint 4 добавлены криптографические хеш-функции для проверки целостности данных.
+
+Реализованы:
 
 ```text
-0.01
+SHA-256
+SHA3-256
 ```
 
-Статистическое тестирование не выявило систематических признаков неудовлетворительного распределения случайных данных CSPRNG.
+Оба алгоритма реализованы самостоятельно.
 
-TEST-3 Sprint 3 выполнен.
+---
+
+# SHA-256
+
+Файл:
+
+```text
+src/cryptocore/hash/sha256.py
+```
+
+SHA-256 реализован без использования `hashlib` внутри основной реализации.
+
+Реализованы:
+
+- обработка 512-битных блоков;
+- 8 начальных значений состояния;
+- 64 константы;
+- функция Ch;
+- функция Maj;
+- функции Σ0 и Σ1;
+- функции σ0 и σ1;
+- message schedule;
+- 64 раунда compression function;
+- SHA-256 padding;
+- 64-битное представление длины сообщения;
+- incremental update;
+- digest;
+- hexadecimal digest.
+
+Поддерживаются методы:
+
+```python
+update()
+digest()
+hexdigest()
+```
+
+---
+
+# SHA3-256
+
+Файл:
+
+```text
+src/cryptocore/hash/sha3_256.py
+```
+
+SHA3-256 также реализован самостоятельно.
+
+Реализованы:
+
+- Keccak sponge construction;
+- Keccak-f[1600];
+- состояние 1600 бит;
+- rate 1088 бит;
+- capacity 512 бит;
+- 24 раунда;
+- Theta;
+- Rho;
+- Pi;
+- Chi;
+- Iota;
+- domain separation SHA-3;
+- padding;
+- получение 256-битного результата.
+
+`hashlib.sha3_256()` внутри основной реализации не используется.
+
+---
+
+# Команда dgst
+
+Для вычисления хешей добавлена отдельная команда:
+
+```text
+cryptocore dgst
+```
+
+Поддерживаются:
+
+```text
+--algorithm
+--input
+--output
+```
+
+Поддерживаемые алгоритмы:
+
+```text
+sha256
+sha3-256
+```
+
+Параметры шифрования:
+
+```text
+--key
+--mode
+--encrypt
+--decrypt
+--iv
+```
+
+команда `dgst` не принимает.
+
+---
+
+# SHA-256 файла
+
+Пример:
+
+```powershell
+cryptocore dgst --algorithm sha256 --input plaintext.txt
+```
+
+Результат:
+
+```text
+85cacb699d2c90431881e2b94d5f99a7ba4263252d0a86cb7f6baaee40c53466  plaintext.txt
+```
+
+Формат:
+
+```text
+HASH_VALUE  INPUT_FILE_PATH
+```
+
+Хеш выводится строчными hexadecimal-символами.
+
+---
+
+# SHA3-256 файла
+
+Пример:
+
+```powershell
+cryptocore dgst --algorithm sha3-256 --input plaintext.txt
+```
+
+Результат:
+
+```text
+5ceabced06ecc36f0f0f53b6b67fc89920a7430eb7a20fb23c8fdaf62b3fa6b3  plaintext.txt
+```
+
+---
+
+# Сохранение хеша в файл
+
+Пример:
+
+```powershell
+cryptocore dgst --algorithm sha256 --input plaintext.txt --output plaintext.sha256
+```
+
+В файл записывается строка:
+
+```text
+HASH_VALUE  INPUT_FILE_PATH
+```
+
+То есть формат совпадает с форматом stdout.
+
+---
+
+# Потоковая обработка файлов
+
+При хешировании файлы не загружаются полностью в оперативную память.
+
+Они открываются в бинарном режиме:
+
+```python
+rb
+```
+
+и обрабатываются частями:
+
+```text
+8192 байт
+```
+
+Схема:
+
+```text
+input file
+    |
+    v
+8192-byte chunk
+    |
+    v
+update()
+    |
+    v
+next chunk
+    |
+    v
+final digest
+```
+
+Это позволяет обрабатывать большие файлы при постоянном объёме используемой памяти.
+
+---
+
+# Known-Answer Tests SHA-256
+
+Проверен хеш пустого сообщения:
+
+```text
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+```
+
+Для:
+
+```text
+abc
+```
+
+получено:
+
+```text
+ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+```
+
+Также проверен вектор:
+
+```text
+abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq
+```
+
+Ожидаемый результат:
+
+```text
+248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1
+```
+
+---
+
+# Known-Answer Tests SHA3-256
+
+Пустое сообщение:
+
+```text
+a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a
+```
+
+Для:
+
+```text
+abc
+```
+
+получено:
+
+```text
+3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532
+```
+
+---
+
+# Interoperability SHA-256
+
+SHA-256 CryptoCore проверен через системную Linux-утилиту:
+
+```bash
+sha256sum plaintext.txt
+```
+
+CryptoCore:
+
+```text
+85cacb699d2c90431881e2b94d5f99a7ba4263252d0a86cb7f6baaee40c53466
+```
+
+`sha256sum`:
+
+```text
+85cacb699d2c90431881e2b94d5f99a7ba4263252d0a86cb7f6baaee40c53466
+```
+
+Результат:
+
+```text
+SHA-256 interoperability: PASSED
+```
+
+---
+
+# Interoperability SHA3-256
+
+SHA3-256 проверен через OpenSSL 3.5.5:
+
+```bash
+openssl dgst -sha3-256 plaintext.txt
+```
+
+CryptoCore:
+
+```text
+5ceabced06ecc36f0f0f53b6b67fc89920a7430eb7a20fb23c8fdaf62b3fa6b3
+```
+
+OpenSSL:
+
+```text
+5ceabced06ecc36f0f0f53b6b67fc89920a7430eb7a20fb23c8fdaf62b3fa6b3
+```
+
+Результат:
+
+```text
+SHA3-256 OpenSSL interoperability: PASSED
+```
+
+В использованной WSL-системе команда `/usr/bin/sha3sum` оказалась другой утилитой `sum` и не поддерживала параметр `-a 256`.
+
+Попытка установки требуемой версии через:
+
+```bash
+sudo apt install libdigest-sha3-perl
+```
+
+не завершилась из-за недоступности Ubuntu-репозитория.
+
+Поэтому независимая проверка SHA3-256 была выполнена через OpenSSL.
+
+---
+
+# Avalanche Effect
+
+Добавлен тест:
+
+```text
+tests/test_hash_avalanche.py
+```
+
+В исходных данных изменяется один бит.
+
+После этого сравниваются 256-битные результаты.
+
+Подсчитывается количество различающихся битов.
+
+Допустимый диапазон:
+
+```text
+100 < changed_bits < 156
+```
+
+Проверяются:
+
+```text
+SHA-256
+SHA3-256
+```
+
+---
+
+# Проверка файла больше 1 GB
+
+Добавлен скрипт:
+
+```text
+scripts/hash_large_file_test.py
+```
+
+Создаётся временный файл размером:
+
+```text
+1 073 741 825 байт
+```
+
+Это на один байт больше 1 GiB.
+
+CryptoCore хеширует его по частям.
+
+Проверяются:
+
+```text
+SHA-256
+SHA3-256
+```
+
+Результаты сравниваются с эталонными реализациями.
+
+Итог:
+
+```text
+Large file test: PASSED
+```
+
+После проверки временный файл автоматически удаляется.
+
+---
+
+# Автоматические тесты Sprint 4
+
+Добавлены:
+
+```text
+tests/test_sha256.py
+tests/test_sha3_256.py
+tests/test_digest.py
+tests/test_digest_cli.py
+tests/test_hash_avalanche.py
+```
+
+Проверяются:
+
+- SHA-256;
+- SHA3-256;
+- пустое сообщение;
+- известные тестовые векторы;
+- сообщения различной длины;
+- incremental update;
+- повторный вызов digest;
+- продолжение update после digest;
+- обработка ошибок;
+- chunked hashing;
+- CLI `dgst`;
+- `--output`;
+- запрет AES-параметров для `dgst`;
+- stdout;
+- avalanche effect.
+
+---
+
+# Проверка всех автоматических тестов
+
+Запуск:
+
+```powershell
+pytest -v
+```
+
+Все тесты должны завершаться без:
+
+```text
+FAILED
+ERROR
+```
+
+---
+
+# Проверка сохранения Sprint 1–3
+
+После реализации Sprint 4 повторно выполнена полная проверка AES через OpenSSL:
+
+```powershell
+python .\scripts\openssl_interop_test.py
+```
+
+Итог:
+
+```text
+Result: 11/11 checks passed
+OpenSSL interoperability: PASSED
+```
+
+Проверены:
+
+```text
+ECB
+CBC
+CFB
+OFB
+CTR
+```
+
+Следовательно, добавление hash-функциональности не нарушило работу предыдущих Sprint.
 
 ---
 
@@ -1178,11 +1105,18 @@ cryptocore/
 |       |-- __main__.py
 |       |-- main.py
 |       |-- cli_parser.py
+|       |-- digest.py
+|       |-- digest_cli.py
 |       |-- file_io.py
 |       |-- padding.py
 |       |-- iv.py
 |       |-- csprng.py
 |       |-- nist_data.py
+|       |
+|       |-- hash/
+|       |   |-- __init__.py
+|       |   |-- sha256.py
+|       |   `-- sha3_256.py
 |       |
 |       `-- modes/
 |           |-- __init__.py
@@ -1203,12 +1137,19 @@ cryptocore/
 |   |-- test_cli.py
 |   |-- test_modes_integration.py
 |   |-- test_csprng.py
-|   `-- test_nist_data.py
+|   |-- test_nist_data.py
+|   |-- test_sha256.py
+|   |-- test_sha3_256.py
+|   |-- test_digest.py
+|   |-- test_digest_cli.py
+|   `-- test_hash_avalanche.py
 |
 |-- scripts/
 |   |-- round_trip_test.py
 |   |-- openssl_interop_test.py
-|   `-- generate_nist_data.py
+|   |-- generate_nist_data.py
+|   |-- hash_interop_test.py
+|   `-- hash_large_file_test.py
 |
 |-- plaintext.txt
 |-- pyproject.toml
@@ -1219,257 +1160,107 @@ cryptocore/
 
 ---
 
-# Основные файлы Sprint 3
+# Итоги Sprint 1
 
-## csprng.py
+Реализованы:
 
-```text
-src/cryptocore/csprng.py
-```
-
-Содержит общий криптографически стойкий генератор случайных байтов на основе `os.urandom()`.
-
----
-
-## iv.py
-
-```text
-src/cryptocore/iv.py
-```
-
-Использует общий CSPRNG для создания 16-байтовых IV.
+- структура проекта;
+- CLI;
+- AES-128 ECB;
+- PKCS#7;
+- файловый ввод-вывод;
+- round-trip;
+- проверка AES-128 ECB через OpenSSL.
 
 ---
 
-## cli_parser.py
+# Итоги Sprint 2
 
-```text
-src/cryptocore/cli_parser.py
-```
+Реализованы:
 
-Поддерживает необязательный `--key` при шифровании и обязательный `--key` при расшифровании.
-
----
-
-## main.py
-
-```text
-src/cryptocore/main.py
-```
-
-Реализует:
-
-- автоматическую генерацию ключа;
-- вывод сгенерированного ключа;
-- использование пользовательского ключа;
-- предупреждение о слабых ключах;
-- выбор режима;
-- генерацию и обработку IV;
-- обработку ошибок.
+- AES-128 CBC;
+- AES-128 CFB-128;
+- AES-128 OFB;
+- AES-128 CTR;
+- самостоятельная логика режимов поверх AES-примитива;
+- генерация IV;
+- формат `<IV><ciphertext>`;
+- явный `--iv`;
+- двусторонняя совместимость с OpenSSL.
 
 ---
 
-## nist_data.py
+# Итоги Sprint 3
 
-```text
-src/cryptocore/nist_data.py
-```
+Реализованы:
 
-Реализует генерацию большого бинарного файла случайных данных для NIST STS.
-
----
-
-## generate_nist_data.py
-
-```text
-scripts/generate_nist_data.py
-```
-
-Создаёт:
-
-```text
-nist_test_data.bin
-```
-
-размером 10 000 000 байт.
-
----
-
-# Основные тесты Sprint 3
-
-## test_csprng.py
-
-Проверяет:
-
-- длину данных;
-- тип данных;
-- уникальность;
-- 1000 случайных значений;
-- базовое распределение битов;
-- ошибки размера;
-- ошибку системного источника случайности.
-
----
-
-## test_iv.py
-
-Проверяет:
-
-- длину IV;
-- разбор hexadecimal IV;
-- добавление IV к ciphertext;
-- извлечение IV;
-- использование общего CSPRNG для генерации IV.
-
----
-
-## test_cli.py
-
-Проверяет:
-
-- поддерживаемые режимы;
-- ключ AES-128;
-- использование IV;
-- запрет IV при шифровании;
-- запрет IV для ECB;
-- необязательный ключ при шифровании;
+- отдельный CSPRNG;
+- `generate_random_bytes()`;
+- использование `os.urandom()`;
+- автоматическая генерация AES-128 ключа;
+- вывод ключа в stdout;
+- отсутствие ключа в ciphertext;
 - обязательный ключ при расшифровании;
-- сохранение поддержки пользовательского ключа.
+- предупреждение о потенциально слабых ключах;
+- единый CSPRNG для IV;
+- тест 1000 уникальных случайных значений;
+- базовая проверка распределения битов;
+- генерация данных NIST STS;
+- полный NIST STS;
+- все 15 статистических тестов.
+
+Итог:
+
+```text
+NIST STS: PASSED
+```
 
 ---
 
-## test_modes_integration.py
+# Итоги Sprint 4
 
-Проверяет:
+Реализованы:
 
-- round-trip режимов;
-- IV в начале зашифрованного файла;
-- расшифрование с явно переданным IV;
-- сохранение работы ECB;
-- автоматическую генерацию AES-ключа;
-- использование пользовательского ключа;
-- обнаружение простых слабых ключей;
-- вывод предупреждения в stderr.
+- SHA-256 с нуля;
+- SHA3-256 с нуля;
+- Keccak-f[1600];
+- отдельный CLI `dgst`;
+- `--algorithm sha256`;
+- `--algorithm sha3-256`;
+- `--input`;
+- `--output`;
+- lowercase hexadecimal output;
+- бинарное чтение;
+- chunked processing;
+- Known-Answer Tests;
+- тест пустого сообщения;
+- interoperability;
+- avalanche effect;
+- тест файла больше 1 GB;
+- сохранена совместимость Sprint 1–3.
 
----
-
-## test_nist_data.py
-
-Проверяет:
-
-- создание файла случайных данных;
-- требуемый размер;
-- наличие записанных данных;
-- отсутствие постоянного одинакового значения.
-
----
-
-# Проверка проекта перед сдачей
-
-Запустить все автоматические тесты:
-
-```powershell
-pytest -v
-```
-
-Запустить round-trip:
-
-```powershell
-python scripts/round_trip_test.py
-```
-
-Добавить OpenSSL в PATH:
-
-```powershell
-$env:Path += ";C:\Program Files\OpenSSL-Win64\bin"
-```
-
-Проверить:
-
-```powershell
-openssl version
-```
-
-Запустить interoperability:
-
-```powershell
-python scripts/openssl_interop_test.py
-```
-
-При успешной проверке:
+Проверка AES после Sprint 4:
 
 ```text
 Result: 11/11 checks passed
 OpenSSL interoperability: PASSED
 ```
 
-Проверить состояние Git:
-
-```powershell
-git status
-```
-
-Для полностью сохранённого проекта:
+Проверка SHA-256:
 
 ```text
-nothing to commit, working tree clean
+SHA-256 interoperability: PASSED
 ```
 
----
+Проверка SHA3-256:
 
-# Итоги Sprint 1
+```text
+SHA3-256 OpenSSL interoperability: PASSED
+```
 
-В Sprint 1 реализованы:
+Проверка большого файла:
 
-- базовая структура проекта;
-- CLI;
-- AES-128 ECB;
-- PKCS#7 padding;
-- бинарный File I/O;
-- round-trip;
-- проверка совместимости AES-128 ECB с OpenSSL.
+```text
+Large file test: PASSED
+```
 
----
-
-# Итоги Sprint 2
-
-В Sprint 2 реализованы:
-
-- AES-128 CBC;
-- AES-128 CFB-128;
-- AES-128 OFB;
-- AES-128 CTR;
-- ручная логика режимов поверх AES-примитива;
-- генерация IV;
-- формат `<IV><ciphertext>`;
-- поддержка явного `--iv` при расшифровании;
-- interoperability с OpenSSL;
-- проверка совместимости в обоих направлениях.
-
----
-
-# Итоги Sprint 3
-
-В Sprint 3 реализованы:
-
-- отдельный CSPRNG-модуль;
-- функция `generate_random_bytes(num_bytes)`;
-- использование `os.urandom()`;
-- обработка ошибок системного источника случайности;
-- автоматическая генерация 16-байтового AES-128 ключа;
-- вывод автоматически созданного ключа в stdout;
-- отсутствие ключа в ciphertext;
-- обязательный `--key` при расшифровании;
-- поддержка пользовательского ключа при шифровании;
-- предупреждение о потенциально слабых ключах;
-- перевод всех IV на единый CSPRNG;
-- тест 1000 уникальных 128-битных значений;
-- базовая проверка распределения единичных битов;
-- генерация 10 MB данных для NIST STS;
-- автоматические тесты генерации файла;
-- полный запуск NIST Statistical Test Suite 2.1.2;
-- запуск всех 15 статистических тестов;
-- проверка 80 последовательностей по 1 000 000 бит;
-- подтверждение соответствия пропорций установленным границам NIST.
-
-Полный прогон NIST STS выполнен.
