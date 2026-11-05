@@ -5,8 +5,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cryptocore"
-version = "1.0.0"
-description = "Educational cryptographic CLI with AES-128 modes, SHA-256, SHA3-256, CSPRNG and HMAC-SHA256."
+version = "1.1.0"
+description = "Educational cryptographic CLI with AES-128 modes, AES-GCM, AEAD, SHA-256, SHA3-256, CSPRNG and HMAC-SHA256."
 requires-python = ">=3.10"
 
 dependencies = [
@@ -24,6 +24,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["cryptocore*"]
 
 
 [tool.pytest.ini_options]
