@@ -1,3 +1,4 @@
+from functools import lru_cache
 from secrets import compare_digest
 
 from Crypto.Cipher import AES
@@ -18,6 +19,7 @@ COUNTER_MODULUS = 1 << 32
 
 class AuthenticationError(ValueError):
     """Ошибка аутентификации AES-GCM."""
+
 
 def _to_bytes(
     value,
@@ -61,22 +63,33 @@ def gf_multiply(
     y: int,
 ) -> int:
 
-    if not isinstance(x, int):
+
+    if not isinstance(
+        x,
+        int,
+    ):
         raise TypeError(
             "x должен быть целым числом."
         )
 
-    if not isinstance(y, int):
+    if not isinstance(
+        y,
+        int,
+    ):
         raise TypeError(
             "y должен быть целым числом."
         )
 
-    if not 0 <= x < (1 << 128):
+    if not (
+        0 <= x < (1 << 128)
+    ):
         raise ValueError(
             "x должен помещаться в 128 бит."
         )
 
-    if not 0 <= y < (1 << 128):
+    if not (
+        0 <= y < (1 << 128)
+    ):
         raise ValueError(
             "y должен помещаться в 128 бит."
         )
@@ -107,11 +120,128 @@ def gf_multiply(
     return z
 
 
+@lru_cache(maxsize=128)
+def _build_gf_multiplication_table(
+    multiplier: int,
+) -> tuple[tuple[int, ...], ...]:
+
+    if not isinstance(
+        multiplier,
+        int,
+    ):
+        raise TypeError(
+            "multiplier должен быть "
+            "целым числом."
+        )
+
+    if not (
+        0
+        <= multiplier
+        < (1 << 128)
+    ):
+        raise ValueError(
+            "multiplier должен "
+            "помещаться в 128 бит."
+        )
+
+    table = []
+
+    for nibble_index in range(32):
+        shift = (
+            31 - nibble_index
+        ) * 4
+
+        row = []
+
+        for value in range(16):
+            positioned_value = (
+                value << shift
+            )
+
+            row.append(
+                gf_multiply(
+                    positioned_value,
+                    multiplier,
+                )
+            )
+
+        table.append(
+            tuple(row)
+        )
+
+    return tuple(table)
+
+
+def gf_multiply_precomputed(
+    x: int,
+    y: int,
+) -> int:
+
+    if not isinstance(
+        x,
+        int,
+    ):
+        raise TypeError(
+            "x должен быть целым числом."
+        )
+
+    if not isinstance(
+        y,
+        int,
+    ):
+        raise TypeError(
+            "y должен быть целым числом."
+        )
+
+    if not (
+        0 <= x < (1 << 128)
+    ):
+        raise ValueError(
+            "x должен помещаться в 128 бит."
+        )
+
+    if not (
+        0 <= y < (1 << 128)
+    ):
+        raise ValueError(
+            "y должен помещаться в 128 бит."
+        )
+
+    table = (
+        _build_gf_multiplication_table(
+            y
+        )
+    )
+
+    result = 0
+
+    for nibble_index in range(32):
+        shift = (
+            31 - nibble_index
+        ) * 4
+
+        nibble = (
+            x >> shift
+        ) & 0xF
+
+        result ^= (
+            table[
+                nibble_index
+            ][
+                nibble
+            ]
+        )
+
+    return result
+
+
 def _ghash_blocks(
     state: int,
     hash_subkey: int,
     data: bytes,
 ) -> int:
+
+
     for offset in range(
         0,
         len(data),
@@ -137,7 +267,7 @@ def _ghash_blocks(
             byteorder="big",
         )
 
-        state = gf_multiply(
+        state = gf_multiply_precomputed(
             state ^ block_value,
             hash_subkey,
         )
@@ -150,6 +280,8 @@ def ghash(
     aad: bytes = b"",
     ciphertext: bytes = b"",
 ) -> bytes:
+
+
     hash_subkey = _to_bytes(
         hash_subkey,
         "Hash subkey",
@@ -273,6 +405,7 @@ def _gctr(
     data: bytes,
 ) -> bytes:
 
+
     data = _to_bytes(
         data,
         "Data",
@@ -336,7 +469,6 @@ def _derive_j0(
     nonce: bytes,
 ) -> bytes:
 
-
     nonce = _to_bytes(
         nonce,
         "Nonce",
@@ -361,7 +493,6 @@ def _derive_j0(
 
 
 class GCM:
-
 
     def __init__(
         self,
@@ -390,6 +521,7 @@ class GCM:
         self.key = key
         self.nonce = nonce
 
+
         self._cipher = AES.new(
             key,
             AES.MODE_ECB,
@@ -398,6 +530,13 @@ class GCM:
         self._hash_subkey = (
             self._cipher.encrypt(
                 b"\x00" * BLOCK_SIZE
+            )
+        )
+
+        _build_gf_multiplication_table(
+            int.from_bytes(
+                self._hash_subkey,
+                byteorder="big",
             )
         )
 
@@ -499,9 +638,6 @@ class GCM:
             )
         )
 
-        # ВАЖНО:
-        # plaintext вычисляется только
-        # после успешной проверки tag.
         if not compare_digest(
             tag,
             expected_tag,

@@ -7,9 +7,10 @@ from cryptocore.modes.gcm import (
     AuthenticationError,
     BLOCK_SIZE,
     TAG_SIZE,
+    _build_gf_multiplication_table,
     _derive_j0,
     _gctr,
-    gf_multiply,
+    gf_multiply_precomputed,
     increment_counter32,
     xor_bytes,
 )
@@ -23,6 +24,7 @@ def _process_full_blocks(
     hash_subkey: int,
     data: bytes,
 ) -> int:
+
     if len(data) % BLOCK_SIZE != 0:
         raise ValueError(
             "Размер блока GHASH должен "
@@ -44,7 +46,7 @@ def _process_full_blocks(
             byteorder="big",
         )
 
-        state = gf_multiply(
+        state = gf_multiply_precomputed(
             state ^ block_value,
             hash_subkey,
         )
@@ -57,6 +59,7 @@ def _finish_partial_block(
     hash_subkey: int,
     pending: bytes,
 ) -> int:
+
     if not pending:
         return state
 
@@ -82,13 +85,6 @@ def ghash_aad_stream(
     ciphertext: bytes,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
 ) -> bytes:
-    """
-    GHASH с потоковой обработкой AAD.
-
-    AAD читается небольшими блоками,
-    поэтому полный AAD не требуется
-    хранить в оперативной памяти.
-    """
 
     if not isinstance(
         hash_subkey,
@@ -113,7 +109,10 @@ def ghash_aad_stream(
         )
 
     if (
-        not isinstance(chunk_size, int)
+        not isinstance(
+            chunk_size,
+            int,
+        )
         or chunk_size <= 0
     ):
         raise ValueError(
@@ -126,8 +125,14 @@ def ghash_aad_stream(
         byteorder="big",
     )
 
+    _build_gf_multiplication_table(
+        h
+    )
+
     state = 0
+
     aad_length = 0
+
     pending = b""
 
     while True:
@@ -174,11 +179,15 @@ def ghash_aad_stream(
             state = _process_full_blocks(
                 state,
                 h,
-                combined[:full_length],
+                combined[
+                    :full_length
+                ],
             )
 
         pending = (
-            combined[full_length:]
+            combined[
+                full_length:
+            ]
         )
 
     state = _finish_partial_block(
@@ -201,11 +210,15 @@ def ghash_aad_stream(
         state = _process_full_blocks(
             state,
             h,
-            ciphertext[:full_length],
+            ciphertext[
+                :full_length
+            ],
         )
 
     remaining = (
-        ciphertext[full_length:]
+        ciphertext[
+            full_length:
+        ]
     )
 
     state = _finish_partial_block(
@@ -257,13 +270,6 @@ def ghash_aad_stream(
 
 
 class GCMStreamingAAD:
-    """
-    AES-GCM с потоковым AAD.
-
-    Plaintext/ciphertext остаётся обычным
-    bytes-интерфейсом, а AAD читается
-    через file-like stream по частям.
-    """
 
     def __init__(
         self,
@@ -297,7 +303,15 @@ class GCMStreamingAAD:
 
         self._hash_subkey = (
             self._cipher.encrypt(
-                b"\x00" * BLOCK_SIZE
+                b"\x00"
+                * BLOCK_SIZE
+            )
+        )
+
+        _build_gf_multiplication_table(
+            int.from_bytes(
+                self._hash_subkey,
+                byteorder="big",
             )
         )
 
@@ -338,6 +352,14 @@ class GCMStreamingAAD:
         aad_stream,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
     ) -> tuple[bytes, bytes]:
+        if not isinstance(
+            plaintext,
+            bytes,
+        ):
+            raise TypeError(
+                "Plaintext должен быть bytes."
+            )
+
         initial_counter = (
             increment_counter32(
                 self._j0
@@ -368,6 +390,23 @@ class GCMStreamingAAD:
         aad_stream,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
     ) -> bytes:
+        if not isinstance(
+            ciphertext,
+            bytes,
+        ):
+            raise TypeError(
+                "Ciphertext должен быть bytes."
+            )
+
+        if not isinstance(
+            tag,
+            bytes,
+        ):
+            raise TypeError(
+                "Authentication tag "
+                "должен быть bytes."
+            )
+
         if len(tag) != TAG_SIZE:
             raise AuthenticationError(
                 "Authentication failed: "
@@ -380,8 +419,6 @@ class GCMStreamingAAD:
             chunk_size,
         )
 
-        # Расшифрование выполняется
-        # только после проверки tag.
         if not compare_digest(
             tag,
             expected_tag,

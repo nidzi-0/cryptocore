@@ -4,7 +4,9 @@ from cryptocore.modes.gcm import (
     AuthenticationError,
     GCM,
     TAG_SIZE,
+    _build_gf_multiplication_table,
     gf_multiply,
+    gf_multiply_precomputed,
 )
 
 
@@ -34,13 +36,76 @@ def test_gf_multiply_zero():
     )
 
 
-def test_nist_gcm_example_1():
-    """
-    NIST AES-GCM Example #1.
+@pytest.mark.parametrize(
+    "x,y",
+    [
+        (
+            0x00000000000000000000000000000000,
+            0x00000000000000000000000000000000,
+        ),
+        (
+            0x00000000000000000000000000000001,
+            0x00000000000000000000000000000001,
+        ),
+        (
+            0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+            0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+        ),
+        (
+            0x0388DACE60B6A392F328C2B971B2FE78,
+            0x66E94BD4EF8A2C3B884CFA59CA342B2E,
+        ),
+        (
+            0x42831EC2217774244B7221B784D0D49C,
+            0xB83B533708BF535D0AA6E52980D53B78,
+        ),
+    ],
+)
+def test_precomputed_gf_matches_reference(
+    x,
+    y,
+):
 
-    AAD = empty
-    Plaintext = empty
-    """
+    reference = gf_multiply(
+        x,
+        y,
+    )
+
+    optimized = (
+        gf_multiply_precomputed(
+            x,
+            y,
+        )
+    )
+
+    assert optimized == reference
+
+
+def test_gf_table_is_cached():
+
+    multiplier = int(
+        "B83B533708BF535D"
+        "0AA6E52980D53B78",
+        16,
+    )
+
+    first = (
+        _build_gf_multiplication_table(
+            multiplier
+        )
+    )
+
+    second = (
+        _build_gf_multiplication_table(
+            multiplier
+        )
+    )
+
+    assert first is second
+
+
+def test_nist_gcm_example_1():
+
 
     gcm = GCM(
         KEY,
@@ -67,12 +132,6 @@ def test_nist_gcm_example_1():
 
 
 def test_nist_gcm_example_4():
-    """
-    NIST AES-GCM Example #4.
-
-    AAD length = 512 bits
-    Plaintext length = 512 bits
-    """
 
     aad = bytes.fromhex(
         "3AD77BB40D7A3660"
