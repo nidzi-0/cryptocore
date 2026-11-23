@@ -2,7 +2,7 @@
 
 CryptoCore — учебное консольное приложение на Python для выполнения криптографических операций с файлами.
 
-Проект последовательно развивается по Sprint 1–6 и включает:
+Проект последовательно развивается по Sprint 1–7 и включает:
 
 - AES-128 ECB;
 - AES-128 CBC;
@@ -17,6 +17,9 @@ CryptoCore — учебное консольное приложение на Pyt
 - SHA-256;
 - SHA3-256;
 - HMAC-SHA256;
+- PBKDF2-HMAC-SHA256;
+- иерархию производных ключей;
+- автоматическую генерацию salt;
 - AEAD;
 - Associated Authenticated Data (AAD);
 - Encrypt-then-MAC;
@@ -45,7 +48,7 @@ https://github.com/nidzi-0/cryptocore
 - PyCryptodome;
 - pytest;
 - OpenSSL — для части interoperability-проверок;
-- WSL/Linux — для некоторых memory-limited тестов;
+- WSL/Linux — для некоторых memory-limited и interoperability-тестов;
 - NIST Statistical Test Suite 2.1.2 — для статистической проверки CSPRNG.
 
 ---
@@ -514,6 +517,7 @@ CSPRNG применяется для:
 - AES-128 ключей;
 - IV;
 - GCM nonce;
+- PBKDF2 salt;
 - данных NIST STS.
 
 ---
@@ -1199,17 +1203,16 @@ GF(2^128)
 x^128 + x^7 + x^2 + x + 1
 ```
 
-Умножение реализовано функцией:
+Умножение реализовано функциями:
 
-```python
-- gf_multiply() — эталонная побитовая реализация;
-- gf_multiply_precomputed() — оптимизированная рабочая реализация.
-
-Для рабочего GHASH используется предварительно вычисленная
-4-битная lookup table. Таблица строится для hash subkey H
-и кэшируется, что уменьшает количество операций при повторных
-умножениях в GF(2^128).
+```text
+gf_multiply() — эталонная побитовая реализация;
+gf_multiply_precomputed() — оптимизированная рабочая реализация.
 ```
+
+Для рабочего GHASH используется предварительно вычисленная 4-битная lookup table.
+
+Таблица строится для hash subkey H и кэшируется, что уменьшает количество операций при повторных умножениях в GF(2^128).
 
 ---
 
@@ -1687,6 +1690,454 @@ Authenticate before releasing plaintext.
 
 ---
 
+# Sprint 7 — Key Derivation Functions
+
+Цель Sprint 7 — реализовать безопасное получение криптографических ключей из паролей и master key.
+
+Реализованы:
+
+- PBKDF2-HMAC-SHA256;
+- собственная реализация PBKDF2;
+- использование HMAC-SHA256 из Sprint 5;
+- произвольная длина password и salt;
+- произвольная длина производного ключа;
+- автоматическая генерация 16-byte salt;
+- команда `derive`;
+- key hierarchy;
+- context separation;
+- OpenSSL interoperability;
+- тест 1000 уникальных salt;
+- performance tests.
+
+---
+
+# PBKDF2-HMAC-SHA256
+
+Реализация:
+
+```text
+src/cryptocore/kdf/pbkdf2.py
+```
+
+PBKDF2 реализован самостоятельно.
+
+Используется:
+
+```text
+HMAC-SHA256
+```
+
+из Sprint 5, который в свою очередь использует собственную реализацию SHA-256 из Sprint 4.
+
+Стандартная библиотечная функция:
+
+```python
+hashlib.pbkdf2_hmac()
+```
+
+в основной реализации PBKDF2 не используется.
+
+Основная формула:
+
+```text
+DK = T1 || T2 || ... || Tn
+```
+
+где:
+
+```text
+Ti = U1 XOR U2 XOR ... XOR Uc
+```
+
+и:
+
+```text
+U1 = PRF(P, S || INT_32_BE(i))
+Uj = PRF(P, Uj-1)
+```
+
+В качестве PRF используется:
+
+```text
+HMAC-SHA256
+```
+
+---
+
+# Команда derive
+
+Для получения ключа из пароля используется:
+
+```powershell
+cryptocore derive --password "password"
+```
+
+Поддерживаемые параметры:
+
+```text
+--password PASSWORD
+--salt SALT
+--iterations COUNT
+--length LENGTH
+--algorithm pbkdf2
+--output FILE
+```
+
+Количество итераций по умолчанию:
+
+```text
+100000
+```
+
+Длина производного ключа по умолчанию:
+
+```text
+32 байта
+```
+
+Если `--salt` не указан, CryptoCore автоматически создаёт случайный salt длиной:
+
+```text
+16 байт
+```
+
+через общий CSPRNG проекта.
+
+---
+
+# Формат salt
+
+Пользовательский salt передаётся как hexadecimal string.
+
+Пример:
+
+```text
+73616c74
+```
+
+что соответствует байтам:
+
+```text
+salt
+```
+
+Пример команды:
+
+```powershell
+cryptocore derive --password "password" --salt 73616c74 --iterations 1 --length 32
+```
+
+Результат:
+
+```text
+120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b 73616c74
+```
+
+Формат stdout:
+
+```text
+KEY_HEX SALT_HEX
+```
+
+---
+
+# Автоматический salt
+
+Если salt не указан:
+
+```powershell
+cryptocore derive --password "MyPassword"
+```
+
+генерируется новый случайный 16-byte salt.
+
+Повторный запуск с тем же паролем создаёт другой salt и, соответственно, другой производный ключ.
+
+Автоматический тест:
+
+```text
+tests/test_derive_cli.py
+```
+
+проверяет:
+
+```text
+1000 generated salts
+=
+1000 unique salts
+```
+
+---
+
+# Количество итераций
+
+Параметр:
+
+```text
+--iterations
+```
+
+определяет число последовательных вычислений HMAC-SHA256.
+
+Увеличение количества итераций увеличивает стоимость перебора пароля.
+
+Пример:
+
+```powershell
+cryptocore derive --password "MyPassword" --iterations 100000
+```
+
+Значение должно быть положительным целым числом.
+
+---
+
+# Длина ключа
+
+Параметр:
+
+```text
+--length
+```
+
+задаёт длину производного ключа в байтах.
+
+Пример:
+
+```powershell
+cryptocore derive --password "MyPassword" --length 16
+```
+
+PBKDF2 поддерживает получение ключей требуемой длины посредством формирования нескольких блоков:
+
+```text
+T1 || T2 || ...
+```
+
+и последующего усечения до указанной длины.
+
+---
+
+# Сохранение производного ключа
+
+Параметр:
+
+```text
+--output
+```
+
+позволяет сохранить производный ключ в файл.
+
+Пример:
+
+```powershell
+cryptocore derive --password "password" --salt 73616c74 --iterations 1 --length 32 --output derived_key.bin
+```
+
+В файл записывается:
+
+```text
+raw binary key
+```
+
+а не hexadecimal-представление.
+
+Salt в файл ключа автоматически не добавляется.
+
+---
+
+# Key hierarchy
+
+Реализация:
+
+```text
+src/cryptocore/kdf/hkdf.py
+```
+
+Функция:
+
+```python
+derive_key(
+    master_key: bytes,
+    context: str,
+    length: int,
+) -> bytes
+```
+
+используется для получения нескольких независимых ключей из одного master key.
+
+Для каждого блока применяется:
+
+```text
+HMAC(master_key, context || counter)
+```
+
+Примеры context:
+
+```text
+encryption
+authentication
+```
+
+Разные context создают разные производные ключи:
+
+```text
+K_encryption != K_authentication
+```
+
+Это обеспечивает domain separation между ключами различного назначения.
+
+---
+
+# PBKDF2 Known-Answer Tests
+
+Файл:
+
+```text
+tests/test_pbkdf2.py
+```
+
+Проверяются известные PBKDF2-HMAC-SHA256 значения.
+
+Пример:
+
+```text
+password = password
+salt = salt
+iterations = 1
+dkLen = 32
+```
+
+Ожидаемый результат:
+
+```text
+120fb6cffcf8b32c43e7225256c4f837
+a86548c92ccc35480805987cb70be17b
+```
+
+Также проверяются:
+
+- deterministic derivation;
+- разные password;
+- разные salt;
+- различные длины производного ключа;
+- строковые password;
+- некорректное количество итераций;
+- некорректная длина ключа.
+
+---
+
+# OpenSSL interoperability PBKDF2
+
+Файл:
+
+```text
+tests/test_pbkdf2_openssl.py
+```
+
+Результат CryptoCore сравнивается с независимой реализацией:
+
+```text
+OpenSSL PBKDF2
+```
+
+Поддерживается поиск OpenSSL:
+
+```text
+Windows OpenSSL
+```
+
+и fallback:
+
+```text
+WSL OpenSSL
+```
+
+CryptoCore и OpenSSL должны формировать одинаковый производный ключ при одинаковых:
+
+```text
+password
+salt
+iteration count
+key length
+SHA-256
+```
+
+Проверка проходит успешно.
+
+---
+
+# PBKDF2 performance
+
+Файл:
+
+```text
+tests/test_pbkdf2_performance.py
+```
+
+На тестовой системе:
+
+```text
+Windows
+Python 3.11.9
+```
+
+были получены результаты:
+
+```text
+10 000 iterations  ≈ 7.2 s
+100 000 iterations ≈ 70 s
+```
+
+Тест на:
+
+```text
+1 000 000 iterations
+```
+
+помечен как:
+
+```text
+slow
+```
+
+и не входит в обычный запуск тестов.
+
+Причина относительно высокой стоимости — PBKDF2 использует собственные Python-реализации HMAC-SHA256 и SHA-256, а не оптимизированные системные реализации.
+
+Обычный запуск:
+
+```powershell
+pytest -v -m "not slow"
+```
+
+Отдельный запуск slow-теста:
+
+```powershell
+pytest .\tests\test_pbkdf2_performance.py -v -s -m slow
+```
+
+---
+
+# Security considerations KDF
+
+Для реального использования необходимо:
+
+- использовать уникальный случайный salt;
+- не использовать salt как секрет;
+- использовать достаточно большое количество PBKDF2-итераций;
+- увеличивать iteration count по мере роста производительности оборудования;
+- использовать разные context для ключей разного назначения;
+- не использовать производный encryption key как authentication key;
+- использовать стойкие пользовательские пароли.
+
+Salt предотвращает получение одинаковых производных ключей для одинаковых паролей при использовании разных salt.
+
+Iteration count увеличивает стоимость brute-force и dictionary attacks.
+
+PBKDF2 не заменяет необходимость использования сильных паролей.
+
+---
+
 # Автоматические тесты
 
 Основные тестовые файлы:
@@ -1697,6 +2148,9 @@ tests/test_cfb.py
 tests/test_cli.py
 tests/test_csprng.py
 tests/test_ctr.py
+
+tests/test_derive_cli.py
+
 tests/test_digest.py
 tests/test_digest_cli.py
 tests/test_ecb.py
@@ -1709,24 +2163,49 @@ tests/test_gcm_security.py
 tests/test_gcm_streaming_aad.py
 
 tests/test_hash_avalanche.py
+
 tests/test_hmac_cli.py
 tests/test_hmac_vectors.py
+
 tests/test_iv.py
+
+tests/test_kdf_hierarchy.py
+
 tests/test_large_hash_streaming.py
 tests/test_modes_integration.py
 tests/test_nist_data.py
 tests/test_nist_hash_vectors.py
+
 tests/test_ofb.py
 tests/test_padding.py
+
+tests/test_pbkdf2.py
+tests/test_pbkdf2_openssl.py
+tests/test_pbkdf2_performance.py
+
 tests/test_sha256.py
 tests/test_sha3_256.py
 tests/test_sprint3_auto_key_e2e.py
 ```
 
-Запуск:
+Обычный запуск без долгих тестов:
 
 ```powershell
-pytest -v
+pytest -v -m "not slow"
+```
+
+Текущий результат:
+
+```text
+272 passed
+1 deselected
+0 failed
+```
+
+Slow-тест запускается отдельно:
+
+```powershell
+pytest -v -m slow
 ```
 
 В `pyproject.toml`:
@@ -1734,9 +2213,11 @@ pytest -v
 ```toml
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-```
 
-Поэтому тяжёлые служебные скрипты из `scripts/` автоматически pytest не запускает.
+markers = [
+    "slow: долгие тесты производительности",
+]
+```
 
 ---
 
@@ -1752,6 +2233,7 @@ cryptocore/
 |       |-- main.py
 |       |-- cli_parser.py
 |       |-- csprng.py
+|       |-- derive.py
 |       |-- digest.py
 |       |-- digest_cli.py
 |       |-- file_io.py
@@ -1768,6 +2250,11 @@ cryptocore/
 |       |   |-- __init__.py
 |       |   |-- sha256.py
 |       |   `-- sha3_256.py
+|       |
+|       |-- kdf/
+|       |   |-- __init__.py
+|       |   |-- hkdf.py
+|       |   `-- pbkdf2.py
 |       |
 |       |-- mac/
 |       |   |-- __init__.py
@@ -1798,6 +2285,7 @@ cryptocore/
 |   |-- test_cli.py
 |   |-- test_csprng.py
 |   |-- test_ctr.py
+|   |-- test_derive_cli.py
 |   |-- test_digest.py
 |   |-- test_digest_cli.py
 |   |-- test_ecb.py
@@ -1810,12 +2298,16 @@ cryptocore/
 |   |-- test_hmac_cli.py
 |   |-- test_hmac_vectors.py
 |   |-- test_iv.py
+|   |-- test_kdf_hierarchy.py
 |   |-- test_large_hash_streaming.py
 |   |-- test_modes_integration.py
 |   |-- test_nist_data.py
 |   |-- test_nist_hash_vectors.py
 |   |-- test_ofb.py
 |   |-- test_padding.py
+|   |-- test_pbkdf2.py
+|   |-- test_pbkdf2_openssl.py
+|   |-- test_pbkdf2_performance.py
 |   |-- test_sha256.py
 |   |-- test_sha3_256.py
 |   `-- test_sprint3_auto_key_e2e.py
@@ -1849,10 +2341,16 @@ cryptocore/
 pip install -e .
 ```
 
-Все автоматические тесты:
+Все обычные автоматические тесты:
 
 ```powershell
-pytest -v
+pytest -v -m "not slow"
+```
+
+Slow performance test:
+
+```powershell
+pytest -v -m slow
 ```
 
 Sprint 1 round-trip:
@@ -1907,6 +2405,18 @@ GCM interoperability:
 
 ```powershell
 python .\scripts\gcm_interop_test.py
+```
+
+PBKDF2/OpenSSL:
+
+```powershell
+pytest .\tests\test_pbkdf2_openssl.py -v
+```
+
+PBKDF2 performance без slow-теста:
+
+```powershell
+pytest .\tests\test_pbkdf2_performance.py -v -s -m "not slow"
 ```
 
 ---
@@ -2039,6 +2549,32 @@ AES-CMAC не реализован, поскольку относится к д�
 
 ---
 
+# Итоги Sprint 7
+
+Реализованы:
+
+- PBKDF2-HMAC-SHA256;
+- PBKDF2 поверх собственного HMAC-SHA256;
+- собственный SHA-256 используется через HMAC;
+- `cryptocore derive`;
+- `--password`;
+- `--salt`;
+- автоматический 16-byte salt;
+- `--iterations`;
+- `--length`;
+- `--algorithm pbkdf2`;
+- `--output`;
+- binary key output;
+- key hierarchy;
+- context separation;
+- known-answer tests;
+- OpenSSL interoperability;
+- 1000 unique salt test;
+- performance tests;
+- отдельный slow performance test для 1 000 000 итераций.
+
+---
+
 # Текущий результат
 
 CryptoCore поддерживает:
@@ -2058,8 +2594,22 @@ SHA3-256
 
 HMAC-SHA256
 
+PBKDF2-HMAC-SHA256
+Key Derivation
+Key Hierarchy
+
 AEAD
 Associated Authenticated Data
 Encrypt-then-MAC
 Streaming AAD
 ```
+
+Текущий результат полного обычного набора тестов:
+
+```text
+272 passed
+1 deselected
+0 failed
+```
+
+Долгий PBKDF2-тест на 1 000 000 итераций вынесен в отдельный `slow` marker.

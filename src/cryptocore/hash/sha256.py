@@ -1,3 +1,4 @@
+import struct
 MASK_32 = 0xFFFFFFFF
 BLOCK_SIZE = 64
 DIGEST_SIZE = 32
@@ -142,24 +143,76 @@ def process_block(
             "ровно 64 байта."
         )
 
-    words = []
+    mask = MASK_32
 
-    for offset in range(0, BLOCK_SIZE, 4):
-        word = int.from_bytes(
-            block[offset:offset + 4],
-            byteorder="big",
+    # Быстрее, чем 16 отдельных
+    # int.from_bytes().
+    words = list(
+        struct.unpack(
+            ">16I",
+            block,
         )
-        words.append(word)
+    )
 
-    for index in range(16, 64):
-        new_word = (
-            small_sigma_1(words[index - 2])
+    words.extend(
+        [0] * 48
+    )
+
+    # Message Schedule W[16..63]
+    for index in range(
+        16,
+        64,
+    ):
+        x = words[
+            index - 15
+        ]
+
+        y = words[
+            index - 2
+        ]
+
+        sigma0 = (
+            (
+                (x >> 7)
+                | (
+                    (x << 25)
+                    & mask
+                )
+            )
+            ^ (
+                (x >> 18)
+                | (
+                    (x << 14)
+                    & mask
+                )
+            )
+            ^ (x >> 3)
+        )
+
+        sigma1 = (
+            (
+                (y >> 17)
+                | (
+                    (y << 15)
+                    & mask
+                )
+            )
+            ^ (
+                (y >> 19)
+                | (
+                    (y << 13)
+                    & mask
+                )
+            )
+            ^ (y >> 10)
+        )
+
+        words[index] = (
+            words[index - 16]
+            + sigma0
             + words[index - 7]
-            + small_sigma_0(words[index - 15])
-            + words[index - 16]
-        ) & MASK_32
-
-        words.append(new_word)
+            + sigma1
+        ) & mask
 
     (
         a,
@@ -172,38 +225,135 @@ def process_block(
         h,
     ) = hash_values
 
+    constants = ROUND_CONSTANTS
+
+    # Основные 64 раунда SHA-256.
+    #
+    # Операции rotate встроены прямо
+    # сюда, чтобы не вызывать отдельные
+    # Python-функции сотни раз на блок.
     for index in range(64):
+        sigma1_e = (
+            (
+                (e >> 6)
+                | (
+                    (e << 26)
+                    & mask
+                )
+            )
+            ^ (
+                (e >> 11)
+                | (
+                    (e << 21)
+                    & mask
+                )
+            )
+            ^ (
+                (e >> 25)
+                | (
+                    (e << 7)
+                    & mask
+                )
+            )
+        )
+
+        choice = (
+            (e & f)
+            ^ ((~e) & g)
+        )
+
         temp1 = (
             h
-            + big_sigma_1(e)
-            + choose(e, f, g)
-            + ROUND_CONSTANTS[index]
+            + sigma1_e
+            + choice
+            + constants[index]
             + words[index]
-        ) & MASK_32
+        ) & mask
+
+        sigma0_a = (
+            (
+                (a >> 2)
+                | (
+                    (a << 30)
+                    & mask
+                )
+            )
+            ^ (
+                (a >> 13)
+                | (
+                    (a << 19)
+                    & mask
+                )
+            )
+            ^ (
+                (a >> 22)
+                | (
+                    (a << 10)
+                    & mask
+                )
+            )
+        )
+
+        majority_value = (
+            (a & b)
+            ^ (a & c)
+            ^ (b & c)
+        )
 
         temp2 = (
-            big_sigma_0(a)
-            + majority(a, b, c)
-        ) & MASK_32
+            sigma0_a
+            + majority_value
+        ) & mask
 
         h = g
         g = f
         f = e
-        e = (d + temp1) & MASK_32
+
+        e = (
+            d + temp1
+        ) & mask
+
         d = c
         c = b
         b = a
-        a = (temp1 + temp2) & MASK_32
+
+        a = (
+            temp1 + temp2
+        ) & mask
 
     return [
-        (hash_values[0] + a) & MASK_32,
-        (hash_values[1] + b) & MASK_32,
-        (hash_values[2] + c) & MASK_32,
-        (hash_values[3] + d) & MASK_32,
-        (hash_values[4] + e) & MASK_32,
-        (hash_values[5] + f) & MASK_32,
-        (hash_values[6] + g) & MASK_32,
-        (hash_values[7] + h) & MASK_32,
+        (
+            hash_values[0]
+            + a
+        ) & mask,
+        (
+            hash_values[1]
+            + b
+        ) & mask,
+        (
+            hash_values[2]
+            + c
+        ) & mask,
+        (
+            hash_values[3]
+            + d
+        ) & mask,
+        (
+            hash_values[4]
+            + e
+        ) & mask,
+        (
+            hash_values[5]
+            + f
+        ) & mask,
+        (
+            hash_values[6]
+            + g
+        ) & mask,
+        (
+            hash_values[7]
+            + h
+        ) & mask,
     ]
 
 
@@ -212,6 +362,25 @@ class SHA256:
         self._hash_values = INITIAL_HASH_VALUES.copy()
         self._buffer = bytearray()
         self._message_length = 0
+
+    def copy(self) -> "SHA256":
+        copied = SHA256.__new__(
+            SHA256
+        )
+
+        copied._hash_values = (
+            self._hash_values.copy()
+        )
+
+        copied._buffer = (
+            self._buffer.copy()
+        )
+
+        copied._message_length = (
+            self._message_length
+        )
+
+        return copied
 
     def update(
         self,

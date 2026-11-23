@@ -1,6 +1,7 @@
 import sys
 
 from .digest import digest_main
+from .derive import derive_main
 from .cli_parser import (
     get_arguments,
     parse_aad,
@@ -343,6 +344,14 @@ def main() -> int:
             sys.argv[2:]
         )
 
+    if (
+        len(sys.argv) > 1
+        and sys.argv[1] == "derive"
+    ):
+        return derive_main(
+            sys.argv[2:]
+        )
+
     try:
         args = get_arguments()
 
@@ -429,9 +438,8 @@ def main() -> int:
                 )
             )
 
-        # ВАЖНО:
         # write_file() вызывается только
-        # ПОСЛЕ успешной GCM-аутентификации.
+        # после успешной GCM-аутентификации.
         write_file(
             file_path=output_file,
             data=result,
